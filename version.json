@@ -1,5 +1,5 @@
 {
-    "version": "1.1.1",
-    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/1.1.1/1.1.1.zip",
-    "changelog": "Resolve automáticamente captcha"
+    "version": "1.1.2",
+    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/1.1.2/1.1.2.zip",
+    "changelog": "Adicionado novos botões para limpar pesquisa + pequenas correções."
 }
