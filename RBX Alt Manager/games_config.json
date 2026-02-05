@@ -1,0 +1,28 @@
+{
+  "spreadsheetId": "1__lG_K1GbwNYjdrt1DAgkw5DX_vsnM62ohMLkFEw-CM",
+  "appsScriptUrl": "https://script.google.com/macros/s/AKfycbzMPPx6Nnbjnh0s8LY7XhK4u5S7TwdVOUdHhZn3vY9ShdHv83e0JEncUEVi8e_NWMEp/exec",
+  "pusher": {
+    "appId": "2109797",
+    "key": "57bd748f4c7f9a3be25b",
+    "secret": "3dd8ccfd8be167d0cc2d",
+    "cluster": "sa1"
+  },
+  "rosolve": {
+    "apiKey": "SUA_CHAVE_ROSOLVE_AQUI",
+    "proxiesFile": "proxies.txt"
+  },
+  "games": [
+    { "name": "Steal A Brainrot", "gid": 1637218332, "placeId": "109983668079237" },
+    { "name": "Escape Tsunami", "gid": 1036319857, "placeId": "131623223084840" },
+    { "name": "Blox Fruits", "gid": 329604601, "placeId": "2753915549" },
+    { "name": "Murder Mystery 2", "gid": 1699388936, "placeId": "142823291" },
+    { "name": "Grow A Garden", "gid": 47237033, "placeId": "126884695634066" },
+    { "name": "Plants vs Brainrots", "gid": 1554191605, "placeId": "127742093697776" },
+    { "name": "Levantar Animais", "gid": 750499672, "placeId": "122826953758426" },
+    { "name": "Toilet Tower Defense", "gid": 1562392488, "placeId": "13775256536" },
+    { "name": "Creatures of Sonaria", "gid": 1895042406, "placeId": "5233782396" },
+    { "name": "Tap Simulator", "gid": 697309269, "placeId": "75992362647444" },
+    { "name": "Break Lucky Block", "gid": 532010938, "placeId": "124311897657957" },
+    { "name": "ROBUX", "gid": 660585678, "placeId": "" }
+  ]
+}
