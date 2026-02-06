@@ -518,6 +518,7 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="Classes\InventorySyncService.cs" />
+    <Compile Include="Classes\TwofaSyncService.cs" />
     <Compile Include="Classes\SupabaseManager.cs" />
     <Compile Include="AccountManager.cs">
       <SubType>Form</SubType>

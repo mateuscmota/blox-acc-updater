@@ -1225,6 +1225,59 @@ namespace RBX_Alt_Manager.Classes
         }
 
         /// <summary>
+        /// Atualiza o 2FA secret de uma conta
+        /// </summary>
+        public async Task<bool> UpdateTwofaSecretAsync(string username, string secret)
+        {
+            try
+            {
+                var data = new { twofa_secret = secret, updated_at = DateTime.UtcNow };
+                var json = JsonConvert.SerializeObject(data);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var request = CreatePatchRequest(
+                    $"{SUPABASE_URL}/rest/v1/accounts?username=eq.{Uri.EscapeDataString(username)}", content);
+
+                var response = await _client.SendAsync(request);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao atualizar 2FA secret: {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Busca contas com twofa_secret atualizadas após uma data
+        /// </summary>
+        public async Task<List<SupabaseAccount>> GetAccountsTwofaUpdatedSinceAsync(DateTime since)
+        {
+            try
+            {
+                string sinceStr = since.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+                var response = await _client.GetAsync(
+                    $"{SUPABASE_URL}/rest/v1/accounts" +
+                    $"?updated_at=gt.{Uri.EscapeDataString(sinceStr)}" +
+                    $"&twofa_secret=not.is.null" +
+                    $"&select=username,twofa_secret,updated_at" +
+                    $"&order=updated_at.asc" +
+                    $"&limit=500");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    return JsonConvert.DeserializeObject<List<SupabaseAccount>>(json) ?? new List<SupabaseAccount>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao buscar 2FA updates: {ex.Message}");
+            }
+            return new List<SupabaseAccount>();
+        }
+
+        /// <summary>
         /// Remove uma conta
         /// </summary>
         public async Task<bool> DeleteAccountAsync(string username)
@@ -1606,6 +1659,9 @@ namespace RBX_Alt_Manager.Classes
 
         [JsonProperty("updated_at")]
         public DateTime UpdatedAt { get; set; }
+
+        [JsonProperty("twofa_secret")]
+        public string TwofaSecret { get; set; }
     }
 
     public class SupabaseDiscardedAccount

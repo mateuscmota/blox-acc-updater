@@ -55,6 +55,7 @@ namespace RBX_Alt_Manager
             this.copySecurityTokenToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.bypassCookieToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.setDescriptionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.set2FASecretToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.setHotkeyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.syncToSupabaseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -255,6 +256,7 @@ namespace RBX_Alt_Manager
             this.copySecurityTokenToolStripMenuItem,
             this.bypassCookieToolStripMenuItem,
             this.setDescriptionToolStripMenuItem,
+            this.set2FASecretToolStripMenuItem,
             this.setHotkeyToolStripMenuItem,
             this.syncToSupabaseToolStripMenuItem,
             this.viewHistoryToolStripMenuItem,
@@ -363,7 +365,14 @@ namespace RBX_Alt_Manager
             this.setDescriptionToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
             this.setDescriptionToolStripMenuItem.Text = "📝 Definir Descrição";
             this.setDescriptionToolStripMenuItem.Click += new System.EventHandler(this.SetDescription_Click);
-            // 
+            //
+            // set2FASecretToolStripMenuItem
+            //
+            this.set2FASecretToolStripMenuItem.Name = "set2FASecretToolStripMenuItem";
+            this.set2FASecretToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.set2FASecretToolStripMenuItem.Text = "🔑 Adicionar 2FA Secret";
+            this.set2FASecretToolStripMenuItem.Click += new System.EventHandler(this.set2FASecretToolStripMenuItem_Click);
+            //
             // setHotkeyToolStripMenuItem
             // 
             this.setHotkeyToolStripMenuItem.Name = "setHotkeyToolStripMenuItem";
@@ -1474,6 +1483,7 @@ namespace RBX_Alt_Manager
         private System.Windows.Forms.ToolStripMenuItem addAccountsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem removeAccountToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem setDescriptionToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem set2FASecretToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem setHotkeyToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem syncToSupabaseToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem viewHistoryToolStripMenuItem;

@@ -1547,6 +1547,8 @@ namespace RBX_Alt_Manager
 
             ApplyTheme();
 
+            this.Text = $"Blox Brasil Gerenciador de Contas v{Classes.BloxBrasilUpdater.CurrentVersion}";
+
             RGForm.RecentGameSelected += (sender, e) => { PlaceID.Text = e.Game.Details?.placeId.ToString(); };
             RGForm.RecentGameDeleted += RGForm_RecentGameDeleted;
 
@@ -2743,6 +2745,9 @@ namespace RBX_Alt_Manager
             if (!string.IsNullOrEmpty(SelectedAccount.GetField("SavedPlaceId"))) PlaceID.Text = SelectedAccount.GetField("SavedPlaceId");
             if (!string.IsNullOrEmpty(SelectedAccount.GetField("SavedJobId"))) JobID.Text = SelectedAccount.GetField("SavedJobId");
 
+            string saved2FA = SelectedAccount.GetField("TwoFASecret");
+            TwoFASecretTextBox.Text = string.IsNullOrEmpty(saved2FA) ? "" : saved2FA;
+
             // Carregar estoque da conta selecionada (Supabase)
             _ = LoadProductsFromSupabaseAsync(SelectedAccount.Username);
         }
@@ -3083,6 +3088,41 @@ namespace RBX_Alt_Manager
             }
         }
 
+        private void OnTwofaSecretChangedFromSync(object sender, System.Collections.Generic.List<Classes.TwofaUpdate> updates)
+        {
+            bool anyChanged = false;
+            foreach (var update in updates)
+            {
+                var account = AccountsList.FirstOrDefault(a =>
+                    a.Username.Equals(update.Username, StringComparison.OrdinalIgnoreCase));
+
+                if (account == null) continue;
+
+                string currentSecret = account.GetField("TwoFASecret");
+                if (currentSecret == update.Secret) continue;
+
+                if (string.IsNullOrEmpty(update.Secret))
+                    account.RemoveField("TwoFASecret");
+                else
+                    account.SetField("TwoFASecret", update.Secret);
+
+                anyChanged = true;
+
+                if (DebugModeAtivo)
+                    AddLog($"🔄 [2FA Sync] Secret atualizado para {update.Username}");
+
+                // Atualizar TextBox se esta conta está selecionada
+                if (SelectedAccount != null &&
+                    SelectedAccount.Username.Equals(update.Username, StringComparison.OrdinalIgnoreCase))
+                {
+                    TwoFASecretTextBox.Text = update.Secret ?? "";
+                }
+            }
+
+            if (anyChanged)
+                SaveAccounts();
+        }
+
         private void ClearEstoquePanel()
         {
             EstoqueUserLabel.Text = "Selecione uma conta";
@@ -3118,6 +3158,10 @@ namespace RBX_Alt_Manager
             // Iniciar serviço de sincronização de inventário
             Classes.InventorySyncService.Instance.Start();
             Classes.InventorySyncService.Instance.InventoryEntriesChanged += OnInventoryChangedFromSync;
+
+            // Iniciar serviço de sincronização de 2FA
+            Classes.TwofaSyncService.Instance.Start();
+            Classes.TwofaSyncService.Instance.TwofaSecretChanged += OnTwofaSecretChangedFromSync;
 
             // Configurar eventos de log
             _inventoryPanel.LogMessage += (s, msg) => AddLog(msg);
@@ -4103,6 +4147,74 @@ namespace RBX_Alt_Manager
 
                     RefreshView();
                     AddLog($"📝 Descrição atualizada para {AccountsView.SelectedObjects.Count} conta(s)");
+                }
+            }
+        }
+
+        private async void set2FASecretToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (SelectedAccount == null)
+            {
+                MessageBox.Show("Selecione uma conta primeiro!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using (var secretForm = new Form())
+            {
+                secretForm.Text = $"2FA Secret - {SelectedAccount.Username}";
+                secretForm.Size = new System.Drawing.Size(420, 160);
+                secretForm.StartPosition = FormStartPosition.CenterParent;
+                secretForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                secretForm.MaximizeBox = false;
+                secretForm.MinimizeBox = false;
+
+                var label = new Label();
+                label.Text = "2FA Secret Key:";
+                label.Location = new System.Drawing.Point(20, 18);
+                label.AutoSize = true;
+                secretForm.Controls.Add(label);
+
+                var textBox = new TextBox();
+                textBox.Location = new System.Drawing.Point(20, 40);
+                textBox.Size = new System.Drawing.Size(365, 20);
+                textBox.Text = SelectedAccount.GetField("TwoFASecret") ?? "";
+                secretForm.Controls.Add(textBox);
+
+                var okButton = new Button();
+                okButton.Text = "Salvar";
+                okButton.Location = new System.Drawing.Point(210, 75);
+                okButton.DialogResult = DialogResult.OK;
+                secretForm.Controls.Add(okButton);
+
+                var cancelButton = new Button();
+                cancelButton.Text = "Cancelar";
+                cancelButton.Location = new System.Drawing.Point(300, 75);
+                cancelButton.DialogResult = DialogResult.Cancel;
+                secretForm.Controls.Add(cancelButton);
+
+                secretForm.AcceptButton = okButton;
+                secretForm.CancelButton = cancelButton;
+
+                ThemeEditor.ApplyThemeControls(secretForm.Controls);
+                secretForm.BackColor = ThemeEditor.FormsBackground;
+
+                if (secretForm.ShowDialog() == DialogResult.OK)
+                {
+                    string secret = textBox.Text.Trim();
+                    string username = SelectedAccount.Username;
+
+                    if (string.IsNullOrEmpty(secret))
+                        SelectedAccount.RemoveField("TwoFASecret");
+                    else
+                        SelectedAccount.SetField("TwoFASecret", secret);
+
+                    TwoFASecretTextBox.Text = secret;
+                    SaveAccounts();
+
+                    // Sincronizar com Supabase
+                    Classes.TwofaSyncService.Instance.MarkLocalUpdate(username);
+                    bool synced = await Classes.SupabaseManager.Instance.UpdateTwofaSecretAsync(username, string.IsNullOrEmpty(secret) ? null : secret);
+                    AddLog($"🔑 2FA Secret {(string.IsNullOrEmpty(secret) ? "removido" : "salvo")} para {username}{(synced ? " (sincronizado)" : " (local apenas)")}");
                 }
             }
         }
