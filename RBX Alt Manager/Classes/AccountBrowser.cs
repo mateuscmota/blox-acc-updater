@@ -49,26 +49,6 @@ namespace RBX_Alt_Manager.Classes
             return longPath;
         }
 
-        /// <summary>
-        /// Copia um diretório recursivamente
-        /// </summary>
-        private static void CopyDirectory(string sourceDir, string destDir)
-        {
-            Directory.CreateDirectory(destDir);
-            
-            foreach (string file in Directory.GetFiles(sourceDir))
-            {
-                string destFile = Path.Combine(destDir, Path.GetFileName(file));
-                File.Copy(file, destFile, true);
-            }
-            
-            foreach (string dir in Directory.GetDirectories(sourceDir))
-            {
-                string destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
-                CopyDirectory(dir, destSubDir);
-            }
-        }
-
         public static BrowserFetcher Fetcher = new BrowserFetcher(Product.Chrome);
 
 
@@ -115,9 +95,16 @@ namespace RBX_Alt_Manager.Classes
 
             List<string> Args = new List<string>(Arguments ?? new string[] { "--disable-web-security" });
 
-            // Carregar extensão anti-captcha selecionada
+            // Carregar extensão anti-captcha selecionada (resetar se inválida)
             string selectedExtension = AccountManager.General.Exists("SelectedAntiCaptcha") ? AccountManager.General.Get("SelectedAntiCaptcha") : "none";
             string ExtensionPath = GetAntiCaptchaExtensionPath(selectedExtension);
+
+            if (ExtensionPath == null && selectedExtension != "none")
+            {
+                System.Diagnostics.Debug.WriteLine($"[Browser] Extensão '{selectedExtension}' inválida (sem manifest.json), resetando para 'none'");
+                AccountManager.General.Set("SelectedAntiCaptcha", "none");
+                selectedExtension = "none";
+            }
             string ConfigPath = Path.Combine(Environment.CurrentDirectory, "BrowserConfig.json");
             BrowserConfig Config = null;
 
@@ -200,53 +187,33 @@ namespace RBX_Alt_Manager.Classes
 
             var Options = new LaunchOptions { Headless = false, DefaultViewport = null, Args = Args.ToArray(), IgnoreHTTPSErrors = true };
 
-            // Configurar extensões
-            if (!string.IsNullOrEmpty(ExtensionPath) && Directory.Exists(ExtensionPath))
+            // Configurar argumentos de janela
             {
                 var finalArgs = new List<string>(Args);
-                
-                // Remover argumentos de window-size e window-position que têm aspas problemáticas
                 finalArgs.RemoveAll(a => a.Contains("--window-size") || a.Contains("--window-position"));
                 finalArgs.Add($"--window-size={(int)Size.X},{(int)Size.Y}");
                 finalArgs.Add($"--window-position={(int)Position.X},{(int)Position.Y}");
-                
-                // Verificar se o caminho tem espaços - copiar para temp se necessário
-                string extPathToUse = Path.GetFullPath(ExtensionPath);
-                
-                if (extPathToUse.Contains(" "))
+
+                // Configurar extensão (usar short path 8.3 para evitar problemas com espaços)
+                if (!string.IsNullOrEmpty(ExtensionPath) && Directory.Exists(ExtensionPath))
                 {
-                    // Copiar extensão para pasta temporária sem espaços
-                    string tempExtDir = Path.Combine(Path.GetTempPath(), "RAMExt_" + Path.GetFileName(ExtensionPath));
-                    try
-                    {
-                        if (Directory.Exists(tempExtDir))
-                            Directory.Delete(tempExtDir, true);
-                        
-                        CopyDirectory(ExtensionPath, tempExtDir);
-                        extPathToUse = tempExtDir;
-                    }
-                    catch { /* Se falhar, usa o caminho original */ }
+                    string extPathToUse = GetShortPath(Path.GetFullPath(ExtensionPath));
+                    finalArgs.Add($"--load-extension={extPathToUse}");
+                    finalArgs.Add($"--disable-extensions-except={extPathToUse}");
                 }
-                
-                finalArgs.Add($"--load-extension={extPathToUse}");
-                finalArgs.Add($"--disable-extensions-except={extPathToUse}");
-                
-                Options.Args = finalArgs.ToArray();
-            }
-            else
-            {
-                // Sem extensões - apenas corrigir argumentos de janela
-                var finalArgs = new List<string>(Args);
-                finalArgs.RemoveAll(a => a.Contains("--window-size") || a.Contains("--window-position"));
-                finalArgs.Add($"--window-size={(int)Size.X},{(int)Size.Y}");
-                finalArgs.Add($"--window-position={(int)Position.X},{(int)Position.Y}");
+
                 Options.Args = finalArgs.ToArray();
             }
 
             await Fetcher.DownloadAsync(BrowserFetcher.DefaultChromiumRevision);
 
             browser = (Browser)await new PuppeteerExtra().Use(new StealthPlugin()).LaunchAsync(Options);
-            page = (Page)(await browser.PagesAsync())[0];
+
+            // Extensões podem abrir abas extras - fechar todas exceto a primeira
+            var pages = await browser.PagesAsync();
+            page = (Page)pages[0];
+            for (int i = 1; i < pages.Length; i++)
+                try { await pages[i].CloseAsync(); } catch { }
 
             if (Proxy != null) browser.Disconnected += (s, e) => Proxy.Dispose();
 
@@ -574,6 +541,11 @@ namespace RBX_Alt_Manager.Classes
         /// <summary>
         /// Retorna o caminho da extensão anti-captcha selecionada
         /// </summary>
+        private static bool IsValidExtensionDir(string path)
+        {
+            return Directory.Exists(path) && File.Exists(Path.Combine(path, "manifest.json"));
+        }
+
         private static string GetAntiCaptchaExtensionPath(string extensionName)
         {
             if (string.IsNullOrEmpty(extensionName) || extensionName == "none")
@@ -582,15 +554,15 @@ namespace RBX_Alt_Manager.Classes
             string extensionsFolder = Path.Combine(Environment.CurrentDirectory, "extensions");
             string extensionPath = Path.Combine(extensionsFolder, extensionName);
 
-            // Também verifica a pasta antiga "extension" para compatibilidade
-            if (!Directory.Exists(extensionPath))
-            {
-                string legacyPath = Path.Combine(Environment.CurrentDirectory, "extension");
-                if (Directory.Exists(legacyPath))
-                    return legacyPath;
-            }
+            if (IsValidExtensionDir(extensionPath))
+                return extensionPath;
 
-            return Directory.Exists(extensionPath) ? extensionPath : null;
+            // Também verifica a pasta antiga "extension" para compatibilidade
+            string legacyPath = Path.Combine(Environment.CurrentDirectory, "extension");
+            if (IsValidExtensionDir(legacyPath))
+                return legacyPath;
+
+            return null;
         }
 
         /// <summary>
@@ -606,13 +578,14 @@ namespace RBX_Alt_Manager.Classes
             {
                 foreach (var dir in Directory.GetDirectories(extensionsFolder))
                 {
-                    extensions.Add(Path.GetFileName(dir));
+                    if (IsValidExtensionDir(dir))
+                        extensions.Add(Path.GetFileName(dir));
                 }
             }
 
             // Verifica pasta legada "extension"
             string legacyPath = Path.Combine(Environment.CurrentDirectory, "extension");
-            if (Directory.Exists(legacyPath) && !extensions.Contains("extension"))
+            if (IsValidExtensionDir(legacyPath) && !extensions.Contains("extension"))
             {
                 extensions.Add("extension (legado)");
             }
