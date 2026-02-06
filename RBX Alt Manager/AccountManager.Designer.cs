@@ -43,6 +43,7 @@ namespace RBX_Alt_Manager
             this.AccountsStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.updateRobuxToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.removeAllFriendsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.unblockAllUsersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.accountUtilitiesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.copyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.copyUsernameToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -55,6 +56,7 @@ namespace RBX_Alt_Manager
             this.bypassCookieToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.setHotkeyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.syncToSupabaseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.removeAccountToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.addAccountsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.quickLogInToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -119,17 +121,13 @@ namespace RBX_Alt_Manager
             this.TwoFALabel = new System.Windows.Forms.Label();
             this.AddUserPassButton = new System.Windows.Forms.Button();
             this.AddCookieButton = new System.Windows.Forms.Button();
+            this.GameSelectorPanel = new System.Windows.Forms.Panel();
             this.EstoquePanel = new System.Windows.Forms.Panel();
             this.EstoqueTitleLabel = new System.Windows.Forms.Label();
+            this.EstoqueRefreshButton = new System.Windows.Forms.Button();
             this.EstoqueUserLabel = new System.Windows.Forms.Label();
             this.EstoqueGameLabel = new System.Windows.Forms.Label();
             this.EstoqueItemsPanel = new System.Windows.Forms.FlowLayoutPanel();
-            this.GameSelectorPanel = new System.Windows.Forms.Panel();
-            this.GameSelectorTitleLabel = new System.Windows.Forms.Label();
-            this.GameSelectorSearchTextBox = new System.Windows.Forms.TextBox();
-            this.GameSelectorButtonsPanel = new System.Windows.Forms.FlowLayoutPanel();
-            this.AddRobuxAccountButton = new System.Windows.Forms.Button();
-            this.GameSelectorBackButton = new System.Windows.Forms.Button();
             this.panel1 = new System.Windows.Forms.Panel();
             this.cfgbtn1 = new System.Windows.Forms.Button();
             this.panel2 = new System.Windows.Forms.Panel();
@@ -151,6 +149,7 @@ namespace RBX_Alt_Manager
             this.label3 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.PANELFOTO = new System.Windows.Forms.Panel();
+            this.sellRbxBtn = new System.Windows.Forms.Button();
             this.AddAccountsStrip.SuspendLayout();
             this.AccountsStrip.SuspendLayout();
             this.OpenBrowserStrip.SuspendLayout();
@@ -162,7 +161,6 @@ namespace RBX_Alt_Manager
             this.EncryptionSelectionPanel.SuspendLayout();
             this.PrivateServersPanel.SuspendLayout();
             this.EstoquePanel.SuspendLayout();
-            this.GameSelectorPanel.SuspendLayout();
             this.panel2.SuspendLayout();
             this.panel3.SuspendLayout();
             this.panel4.SuspendLayout();
@@ -248,6 +246,7 @@ namespace RBX_Alt_Manager
             this.AccountsStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.updateRobuxToolStripMenuItem,
             this.removeAllFriendsToolStripMenuItem,
+            this.unblockAllUsersToolStripMenuItem,
             this.accountUtilitiesToolStripMenuItem,
             this.copyToolStripMenuItem,
             this.sortAlphabeticallyToolStripMenuItem,
@@ -256,9 +255,10 @@ namespace RBX_Alt_Manager
             this.bypassCookieToolStripMenuItem,
             this.setHotkeyToolStripMenuItem,
             this.syncToSupabaseToolStripMenuItem,
+            this.viewHistoryToolStripMenuItem,
             this.removeAccountToolStripMenuItem});
             this.AccountsStrip.Name = "contextMenuStrip1";
-            this.AccountsStrip.Size = new System.Drawing.Size(238, 246);
+            this.AccountsStrip.Size = new System.Drawing.Size(238, 290);
             // 
             // updateRobuxToolStripMenuItem
             // 
@@ -273,6 +273,13 @@ namespace RBX_Alt_Manager
             this.removeAllFriendsToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
             this.removeAllFriendsToolStripMenuItem.Text = "💔 Remover Todas as Amizades";
             this.removeAllFriendsToolStripMenuItem.Click += new System.EventHandler(this.removeAllFriendsToolStripMenuItem_Click);
+            // 
+            // unblockAllUsersToolStripMenuItem
+            // 
+            this.unblockAllUsersToolStripMenuItem.Name = "unblockAllUsersToolStripMenuItem";
+            this.unblockAllUsersToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.unblockAllUsersToolStripMenuItem.Text = "🔓 Desbloquear Todos";
+            this.unblockAllUsersToolStripMenuItem.Click += new System.EventHandler(this.unblockAllUsersToolStripMenuItem_Click);
             // 
             // accountUtilitiesToolStripMenuItem
             // 
@@ -361,6 +368,13 @@ namespace RBX_Alt_Manager
             this.syncToSupabaseToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
             this.syncToSupabaseToolStripMenuItem.Text = "☁️ Enviar para Nuvem";
             this.syncToSupabaseToolStripMenuItem.Click += new System.EventHandler(this.syncToSupabaseToolStripMenuItem_Click);
+            // 
+            // viewHistoryToolStripMenuItem
+            // 
+            this.viewHistoryToolStripMenuItem.Name = "viewHistoryToolStripMenuItem";
+            this.viewHistoryToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.viewHistoryToolStripMenuItem.Text = "📜 Ver histórico da conta";
+            this.viewHistoryToolStripMenuItem.Click += new System.EventHandler(this.viewHistoryToolStripMenuItem_Click);
             // 
             // removeAccountToolStripMenuItem
             // 
@@ -1059,149 +1073,88 @@ namespace RBX_Alt_Manager
             this.AddCookieButton.UseVisualStyleBackColor = true;
             this.AddCookieButton.Click += new System.EventHandler(this.AddCookieButton_Click);
             // 
-            // EstoquePanel
-            // 
-            this.EstoquePanel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.EstoquePanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
-            this.EstoquePanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.EstoquePanel.Controls.Add(this.EstoqueTitleLabel);
-            this.EstoquePanel.Controls.Add(this.EstoqueUserLabel);
-            this.EstoquePanel.Controls.Add(this.EstoqueGameLabel);
-            this.EstoquePanel.Controls.Add(this.EstoqueItemsPanel);
-            this.EstoquePanel.Location = new System.Drawing.Point(579, 47);
-            this.EstoquePanel.Name = "EstoquePanel";
-            this.EstoquePanel.Size = new System.Drawing.Size(229, 682);
-            this.EstoquePanel.TabIndex = 1000;
-            // 
-            // EstoqueTitleLabel
-            // 
-            this.EstoqueTitleLabel.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
-            this.EstoqueTitleLabel.ForeColor = System.Drawing.Color.White;
-            this.EstoqueTitleLabel.Location = new System.Drawing.Point(36, 3);
-            this.EstoqueTitleLabel.Name = "EstoqueTitleLabel";
-            this.EstoqueTitleLabel.Size = new System.Drawing.Size(152, 20);
-            this.EstoqueTitleLabel.TabIndex = 4;
-            this.EstoqueTitleLabel.Text = "ALTERAR ESTOQUE";
-            this.EstoqueTitleLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // EstoqueUserLabel
-            // 
-            this.EstoqueUserLabel.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.EstoqueUserLabel.ForeColor = System.Drawing.Color.Cyan;
-            this.EstoqueUserLabel.Location = new System.Drawing.Point(36, 25);
-            this.EstoqueUserLabel.Name = "EstoqueUserLabel";
-            this.EstoqueUserLabel.Size = new System.Drawing.Size(152, 18);
-            this.EstoqueUserLabel.TabIndex = 0;
-            this.EstoqueUserLabel.Text = "nomedaconta";
-            this.EstoqueUserLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // EstoqueGameLabel
-            // 
-            this.EstoqueGameLabel.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.EstoqueGameLabel.ForeColor = System.Drawing.Color.LimeGreen;
-            this.EstoqueGameLabel.Location = new System.Drawing.Point(36, 43);
-            this.EstoqueGameLabel.Name = "EstoqueGameLabel";
-            this.EstoqueGameLabel.Size = new System.Drawing.Size(152, 18);
-            this.EstoqueGameLabel.TabIndex = 1;
-            this.EstoqueGameLabel.Text = "NOMEDOJOGO";
-            this.EstoqueGameLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // EstoqueItemsPanel
-            // 
-            this.EstoqueItemsPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.EstoqueItemsPanel.AutoScroll = true;
-            this.EstoqueItemsPanel.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
-            this.EstoqueItemsPanel.Location = new System.Drawing.Point(3, 64);
-            this.EstoqueItemsPanel.Name = "EstoqueItemsPanel";
-            this.EstoqueItemsPanel.Size = new System.Drawing.Size(221, 611);
-            this.EstoqueItemsPanel.TabIndex = 2;
-            this.EstoqueItemsPanel.WrapContents = false;
-            // 
             // GameSelectorPanel
             // 
             this.GameSelectorPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.GameSelectorPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
             this.GameSelectorPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.GameSelectorPanel.Controls.Add(this.GameSelectorTitleLabel);
-            this.GameSelectorPanel.Controls.Add(this.GameSelectorSearchTextBox);
-            this.GameSelectorPanel.Controls.Add(this.GameSelectorButtonsPanel);
-            this.GameSelectorPanel.Controls.Add(this.AddRobuxAccountButton);
-            this.GameSelectorPanel.Controls.Add(this.GameSelectorBackButton);
             this.GameSelectorPanel.Location = new System.Drawing.Point(814, 47);
             this.GameSelectorPanel.Name = "GameSelectorPanel";
             this.GameSelectorPanel.Size = new System.Drawing.Size(310, 682);
             this.GameSelectorPanel.TabIndex = 1001;
-            this.GameSelectorPanel.Paint += new System.Windows.Forms.PaintEventHandler(this.GameSelectorPanel_Paint);
             // 
-            // GameSelectorTitleLabel
+            // EstoquePanel
             // 
-            this.GameSelectorTitleLabel.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
-            this.GameSelectorTitleLabel.ForeColor = System.Drawing.Color.White;
-            this.GameSelectorTitleLabel.Location = new System.Drawing.Point(64, 4);
-            this.GameSelectorTitleLabel.Name = "GameSelectorTitleLabel";
-            this.GameSelectorTitleLabel.Size = new System.Drawing.Size(152, 25);
-            this.GameSelectorTitleLabel.TabIndex = 0;
-            this.GameSelectorTitleLabel.Text = "JOGOS";
-            this.GameSelectorTitleLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.EstoquePanel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.EstoquePanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
+            this.EstoquePanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.EstoquePanel.Controls.Add(this.EstoqueTitleLabel);
+            this.EstoquePanel.Controls.Add(this.EstoqueRefreshButton);
+            this.EstoquePanel.Controls.Add(this.EstoqueUserLabel);
+            this.EstoquePanel.Controls.Add(this.EstoqueGameLabel);
+            this.EstoquePanel.Controls.Add(this.EstoqueItemsPanel);
+            this.EstoquePanel.Location = new System.Drawing.Point(579, 47);
+            this.EstoquePanel.Name = "EstoquePanel";
+            this.EstoquePanel.Size = new System.Drawing.Size(230, 682);
+            this.EstoquePanel.TabIndex = 1600;
             // 
-            // GameSelectorSearchTextBox
+            // EstoqueTitleLabel
             // 
-            this.GameSelectorSearchTextBox.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(60)))), ((int)(((byte)(60)))), ((int)(((byte)(60)))));
-            this.GameSelectorSearchTextBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.GameSelectorSearchTextBox.Font = new System.Drawing.Font("Segoe UI", 8F);
-            this.GameSelectorSearchTextBox.ForeColor = System.Drawing.Color.White;
-            this.GameSelectorSearchTextBox.Location = new System.Drawing.Point(3, 32);
-            this.GameSelectorSearchTextBox.Name = "GameSelectorSearchTextBox";
-            this.GameSelectorSearchTextBox.Size = new System.Drawing.Size(257, 22);
-            this.GameSelectorSearchTextBox.TabIndex = 3;
-            this.GameSelectorSearchTextBox.Text = "🔍 Buscar...";
-            this.GameSelectorSearchTextBox.Visible = false;
-            this.GameSelectorSearchTextBox.TextChanged += new System.EventHandler(this.GameSelectorSearchTextBox_TextChanged);
-            this.GameSelectorSearchTextBox.Enter += new System.EventHandler(this.GameSelectorSearchTextBox_Enter);
-            this.GameSelectorSearchTextBox.Leave += new System.EventHandler(this.GameSelectorSearchTextBox_Leave);
+            this.EstoqueTitleLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
+            this.EstoqueTitleLabel.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
+            this.EstoqueTitleLabel.ForeColor = System.Drawing.Color.White;
+            this.EstoqueTitleLabel.Location = new System.Drawing.Point(0, 0);
+            this.EstoqueTitleLabel.Name = "EstoqueTitleLabel";
+            this.EstoqueTitleLabel.Size = new System.Drawing.Size(160, 20);
+            this.EstoqueTitleLabel.TabIndex = 0;
+            this.EstoqueTitleLabel.Text = "  ALTERAR ESTOQUE";
+            this.EstoqueTitleLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // GameSelectorButtonsPanel
+            // EstoqueRefreshButton
             // 
-            this.GameSelectorButtonsPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.GameSelectorButtonsPanel.AutoScroll = true;
-            this.GameSelectorButtonsPanel.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
-            this.GameSelectorButtonsPanel.Location = new System.Drawing.Point(3, 57);
-            this.GameSelectorButtonsPanel.Name = "GameSelectorButtonsPanel";
-            this.GameSelectorButtonsPanel.Size = new System.Drawing.Size(257, 564);
-            this.GameSelectorButtonsPanel.TabIndex = 1;
-            this.GameSelectorButtonsPanel.WrapContents = false;
+            this.EstoqueRefreshButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
+            this.EstoqueRefreshButton.FlatAppearance.BorderSize = 0;
+            this.EstoqueRefreshButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.EstoqueRefreshButton.Font = new System.Drawing.Font("Segoe UI", 8F);
+            this.EstoqueRefreshButton.ForeColor = System.Drawing.Color.White;
+            this.EstoqueRefreshButton.Location = new System.Drawing.Point(185, 0);
+            this.EstoqueRefreshButton.Name = "EstoqueRefreshButton";
+            this.EstoqueRefreshButton.Size = new System.Drawing.Size(43, 20);
+            this.EstoqueRefreshButton.TabIndex = 1;
+            this.EstoqueRefreshButton.Text = "🔄";
+            this.EstoqueRefreshButton.UseVisualStyleBackColor = false;
+            this.EstoqueRefreshButton.Click += new System.EventHandler(this.EstoqueRefreshButton_Click);
             // 
-            // AddRobuxAccountButton
+            // EstoqueUserLabel
             // 
-            this.AddRobuxAccountButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.AddRobuxAccountButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.AddRobuxAccountButton.ForeColor = System.Drawing.Color.LimeGreen;
-            this.AddRobuxAccountButton.Location = new System.Drawing.Point(3, 626);
-            this.AddRobuxAccountButton.Name = "AddRobuxAccountButton";
-            this.AddRobuxAccountButton.Size = new System.Drawing.Size(257, 23);
-            this.AddRobuxAccountButton.TabIndex = 3;
-            this.AddRobuxAccountButton.Text = "ADICIONAR CONTA";
-            this.AddRobuxAccountButton.UseVisualStyleBackColor = true;
-            this.AddRobuxAccountButton.Visible = false;
-            this.AddRobuxAccountButton.Click += new System.EventHandler(this.AddRobuxAccountButton_Click);
+            this.EstoqueUserLabel.Font = new System.Drawing.Font("Segoe UI", 7F);
+            this.EstoqueUserLabel.ForeColor = System.Drawing.Color.LimeGreen;
+            this.EstoqueUserLabel.Location = new System.Drawing.Point(2, 20);
+            this.EstoqueUserLabel.Name = "EstoqueUserLabel";
+            this.EstoqueUserLabel.Size = new System.Drawing.Size(224, 16);
+            this.EstoqueUserLabel.TabIndex = 2;
+            this.EstoqueUserLabel.Text = "Selecione uma conta";
+            this.EstoqueUserLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // GameSelectorBackButton
+            // EstoqueGameLabel
             // 
-            this.GameSelectorBackButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.GameSelectorBackButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.GameSelectorBackButton.ForeColor = System.Drawing.Color.White;
-            this.GameSelectorBackButton.Location = new System.Drawing.Point(3, 652);
-            this.GameSelectorBackButton.Name = "GameSelectorBackButton";
-            this.GameSelectorBackButton.Size = new System.Drawing.Size(257, 23);
-            this.GameSelectorBackButton.TabIndex = 2;
-            this.GameSelectorBackButton.Text = "VOLTAR";
-            this.GameSelectorBackButton.UseVisualStyleBackColor = true;
-            this.GameSelectorBackButton.Visible = false;
-            this.GameSelectorBackButton.Click += new System.EventHandler(this.GameSelectorBackButton_Click);
+            this.EstoqueGameLabel.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold);
+            this.EstoqueGameLabel.ForeColor = System.Drawing.Color.Gray;
+            this.EstoqueGameLabel.Location = new System.Drawing.Point(2, 36);
+            this.EstoqueGameLabel.Name = "EstoqueGameLabel";
+            this.EstoqueGameLabel.Size = new System.Drawing.Size(224, 14);
+            this.EstoqueGameLabel.TabIndex = 3;
+            this.EstoqueGameLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // EstoqueItemsPanel
+            // 
+            this.EstoqueItemsPanel.AutoScroll = true;
+            this.EstoqueItemsPanel.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            this.EstoqueItemsPanel.Location = new System.Drawing.Point(2, 52);
+            this.EstoqueItemsPanel.Name = "EstoqueItemsPanel";
+            this.EstoqueItemsPanel.Size = new System.Drawing.Size(224, 625);
+            this.EstoqueItemsPanel.TabIndex = 4;
+            this.EstoqueItemsPanel.WrapContents = false;
             // 
             // panel1
             // 
@@ -1349,7 +1302,7 @@ namespace RBX_Alt_Manager
             // 
             // label5
             // 
-            this.label5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.label5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.label5.AutoSize = true;
             this.label5.Location = new System.Drawing.Point(1024, 4);
             this.label5.Name = "label5";
@@ -1359,7 +1312,7 @@ namespace RBX_Alt_Manager
             // 
             // button4
             // 
-            this.button4.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.button4.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.button4.Location = new System.Drawing.Point(1010, 98);
             this.button4.Name = "button4";
             this.button4.Size = new System.Drawing.Size(107, 23);
@@ -1369,7 +1322,7 @@ namespace RBX_Alt_Manager
             // 
             // textBox1
             // 
-            this.textBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.textBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.textBox1.Location = new System.Drawing.Point(1010, 20);
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(107, 20);
@@ -1377,7 +1330,7 @@ namespace RBX_Alt_Manager
             // 
             // ADDAMIGO
             // 
-            this.ADDAMIGO.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.ADDAMIGO.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.ADDAMIGO.Location = new System.Drawing.Point(1010, 46);
             this.ADDAMIGO.Name = "ADDAMIGO";
             this.ADDAMIGO.Size = new System.Drawing.Size(107, 23);
@@ -1387,7 +1340,7 @@ namespace RBX_Alt_Manager
             // 
             // button1
             // 
-            this.button1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.button1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.button1.Location = new System.Drawing.Point(1010, 72);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(107, 23);
@@ -1430,12 +1383,25 @@ namespace RBX_Alt_Manager
             this.PANELFOTO.Size = new System.Drawing.Size(51, 47);
             this.PANELFOTO.TabIndex = 0;
             // 
+            // sellRbxBtn
+            // 
+            this.sellRbxBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.sellRbxBtn.BackColor = System.Drawing.SystemColors.ActiveCaption;
+            this.sellRbxBtn.Location = new System.Drawing.Point(579, 10);
+            this.sellRbxBtn.Name = "sellRbxBtn";
+            this.sellRbxBtn.Size = new System.Drawing.Size(172, 32);
+            this.sellRbxBtn.TabIndex = 1601;
+            this.sellRbxBtn.Text = "📋 SELLRBX";
+            this.sellRbxBtn.UseVisualStyleBackColor = false;
+            this.sellRbxBtn.Click += new System.EventHandler(this.sellRbxBtn_Click);
+            // 
             // AccountManager
             // 
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1131, 862);
+            this.Controls.Add(this.sellRbxBtn);
             this.Controls.Add(this.panel4);
             this.Controls.Add(this.LogsButton);
             this.Controls.Add(this.button2);
@@ -1443,8 +1409,8 @@ namespace RBX_Alt_Manager
             this.Controls.Add(this.cfgbtn1);
             this.Controls.Add(this.panel2);
             this.Controls.Add(this.panel1);
-            this.Controls.Add(this.GameSelectorPanel);
             this.Controls.Add(this.EstoquePanel);
+            this.Controls.Add(this.GameSelectorPanel);
             this.Controls.Add(this.DebugLogTextBox);
             this.Controls.Add(this.PrivateServersPanel);
             this.Controls.Add(this.PasswordPanel);
@@ -1472,8 +1438,6 @@ namespace RBX_Alt_Manager
             this.PrivateServersPanel.ResumeLayout(false);
             this.PrivateServersPanel.PerformLayout();
             this.EstoquePanel.ResumeLayout(false);
-            this.GameSelectorPanel.ResumeLayout(false);
-            this.GameSelectorPanel.PerformLayout();
             this.panel2.ResumeLayout(false);
             this.panel2.PerformLayout();
             this.panel3.ResumeLayout(false);
@@ -1498,7 +1462,9 @@ namespace RBX_Alt_Manager
         private System.Windows.Forms.ToolStripMenuItem removeAccountToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem setHotkeyToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem syncToSupabaseToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem viewHistoryToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem removeAllFriendsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem unblockAllUsersToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem accountUtilitiesToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem infoToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem getAuthenticationTicketToolStripMenuItem;
@@ -1577,20 +1543,15 @@ namespace RBX_Alt_Manager
         private System.Windows.Forms.TextBox TwoFACodeTextBox;
         private System.Windows.Forms.Button TwoFAGenerateButton;
         
-        // Painel de Estoque Google Sheets (ALTERAR ESTOQUE)
+        private System.Windows.Forms.Panel GameSelectorPanel;
+
+        // Painel ALTERAR ESTOQUE (Supabase)
         private System.Windows.Forms.Panel EstoquePanel;
         private System.Windows.Forms.Label EstoqueTitleLabel;
         private System.Windows.Forms.Label EstoqueUserLabel;
         private System.Windows.Forms.Label EstoqueGameLabel;
         private System.Windows.Forms.FlowLayoutPanel EstoqueItemsPanel;
-        
-        // Painel Seletor de Jogos (JOGOS)
-        private System.Windows.Forms.Panel GameSelectorPanel;
-        private System.Windows.Forms.Label GameSelectorTitleLabel;
-        private System.Windows.Forms.FlowLayoutPanel GameSelectorButtonsPanel;
-        private System.Windows.Forms.Button GameSelectorBackButton;
-        private System.Windows.Forms.Button AddRobuxAccountButton;
-        private System.Windows.Forms.TextBox GameSelectorSearchTextBox;
+        private System.Windows.Forms.Button EstoqueRefreshButton;
         
         // Painel de Amigos (usa panel4 existente)
         private System.Windows.Forms.FlowLayoutPanel FriendsListPanel;
@@ -1616,5 +1577,6 @@ namespace RBX_Alt_Manager
         private System.Windows.Forms.Button button4;
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.Button ADDAMIGO;
+        private System.Windows.Forms.Button sellRbxBtn;
     }
 }

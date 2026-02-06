@@ -71,31 +71,6 @@ namespace RBX_Alt_Manager.Classes
 
         public static BrowserFetcher Fetcher = new BrowserFetcher(Product.Chrome);
 
-        // Caminhos comuns do Chrome instalado
-        private static readonly string[] ChromePaths = new string[]
-        {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Google", "Chrome", "Application", "chrome.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Google", "Chrome", "Application", "chrome.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Google", "Chrome", "Application", "chrome.exe"),
-        };
-
-        /// <summary>
-        /// Detecta se o Chrome está instalado no sistema
-        /// </summary>
-        public static string GetInstalledChromePath()
-        {
-            foreach (var path in ChromePaths)
-            {
-                if (File.Exists(path))
-                    return path;
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Verifica se deve usar o Chrome instalado ao invés do Chromium
-        /// </summary>
-        public static bool UseInstalledChrome => AccountManager.General.Exists("UseInstalledChrome") && AccountManager.General.Get<bool>("UseInstalledChrome");
 
         private static Dictionary<int, Vector2> ScreenGrid;
 
@@ -103,6 +78,9 @@ namespace RBX_Alt_Manager.Classes
         private readonly HashSet<string> Solved = new HashSet<string>();
         private ProxyClient Proxy = null;
         private string Password;
+        private Account _linkedAccount;
+        private DateTime _lastGameJoinLogTime = DateTime.MinValue;
+        private long _lastVisitedPlaceId = 0;
 
         public Browser browser;
         public Page page;
@@ -113,6 +91,7 @@ namespace RBX_Alt_Manager.Classes
 
         public AccountBrowser(Account account, string Url = null, string Script = null, Func<Page, Task> PostNavigation = null)
         {
+            _linkedAccount = account;
             _ = LaunchBrowser(Url ?? string.Empty, Script: Script, PostNavigation: PostNavigation, PostPageCreation: () => page.SetCookieAsync(new CookieParam
             {
                 Name = ".ROBLOSECURITY",
@@ -221,21 +200,7 @@ namespace RBX_Alt_Manager.Classes
 
             var Options = new LaunchOptions { Headless = false, DefaultViewport = null, Args = Args.ToArray(), IgnoreHTTPSErrors = true };
 
-            // Verificar se deve usar Chrome instalado
-            string chromePath = null;
-            bool isChrome = false;
-            
-            if (UseInstalledChrome)
-            {
-                chromePath = GetInstalledChromePath();
-                if (!string.IsNullOrEmpty(chromePath))
-                {
-                    isChrome = true;
-                    Options.ExecutablePath = chromePath;
-                }
-            }
-
-            // Configurar extensões (funciona diferente para Chrome vs Chromium)
+            // Configurar extensões
             if (!string.IsNullOrEmpty(ExtensionPath) && Directory.Exists(ExtensionPath))
             {
                 var finalArgs = new List<string>(Args);
@@ -263,40 +228,8 @@ namespace RBX_Alt_Manager.Classes
                     catch { /* Se falhar, usa o caminho original */ }
                 }
                 
-                if (isChrome)
-                {
-                    // Chrome: usar perfil persistente para extensões funcionarem
-                    // O Chrome não carrega extensões desempacotadas sem um perfil configurado
-                    string chromeDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RAMChromeProfile");
-                    if (!Directory.Exists(chromeDataDir))
-                        Directory.CreateDirectory(chromeDataDir);
-                    
-                    // Argumentos essenciais para Chrome
-                    finalArgs.Add($"--user-data-dir={chromeDataDir}");
-                    finalArgs.Add($"--load-extension={extPathToUse}");
-                    
-                    // Desabilitar verificações de segurança que bloqueiam extensões
-                    finalArgs.Add("--disable-extensions-except=" + extPathToUse);
-                    finalArgs.Add("--no-first-run");
-                    finalArgs.Add("--no-default-browser-check");
-                    finalArgs.Add("--disable-background-networking");
-                    finalArgs.Add("--disable-sync");
-                    finalArgs.Add("--metrics-recording-only");
-                    finalArgs.Add("--disable-default-apps");
-                    finalArgs.Add("--mute-audio");
-                    finalArgs.Add("--no-sandbox");
-                    finalArgs.Add("--disable-background-timer-throttling");
-                    finalArgs.Add("--disable-backgrounding-occluded-windows");
-                    finalArgs.Add("--disable-renderer-backgrounding");
-                    finalArgs.Add("--disable-features=TranslateUI");
-                    finalArgs.Add("--disable-ipc-flooding-protection");
-                }
-                else
-                {
-                    // Chromium - formato padrão
-                    finalArgs.Add($"--load-extension={extPathToUse}");
-                    finalArgs.Add($"--disable-extensions-except={extPathToUse}");
-                }
+                finalArgs.Add($"--load-extension={extPathToUse}");
+                finalArgs.Add($"--disable-extensions-except={extPathToUse}");
                 
                 Options.Args = finalArgs.ToArray();
             }
@@ -310,11 +243,7 @@ namespace RBX_Alt_Manager.Classes
                 Options.Args = finalArgs.ToArray();
             }
 
-            // Se não está usando Chrome instalado, baixar Chromium
-            if (string.IsNullOrEmpty(Options.ExecutablePath))
-            {
-                await Fetcher.DownloadAsync(BrowserFetcher.DefaultChromiumRevision);
-            }
+            await Fetcher.DownloadAsync(BrowserFetcher.DefaultChromiumRevision);
 
             browser = (Browser)await new PuppeteerExtra().Use(new StealthPlugin()).LaunchAsync(Options);
             page = (Page)(await browser.PagesAsync())[0];
@@ -343,6 +272,13 @@ namespace RBX_Alt_Manager.Classes
             if (!string.IsNullOrEmpty(Script)) await page.EvaluateExpressionAsync(Script);
 
             page.FrameAttached += Page_FrameAttached;
+
+            // Detectar game join via navegador para registrar histórico
+            if (_linkedAccount != null)
+            {
+                page.FrameNavigated += Page_FrameNavigated;
+                page.RequestFinished += Page_GameJoinRequested;
+            }
 
             if (PostNavigation != null) try { await PostNavigation(page); } catch { }
 
@@ -490,6 +426,124 @@ namespace RBX_Alt_Manager.Classes
                 }
                 else if (Regex.IsMatch(Url.AbsolutePath, "/users/[0-9]+/two-step-verification/login") && (await page.GetCookiesAsync("https://roblox.com/")).FirstOrDefault(Cookie => Cookie.Name == ".ROBLOSECURITY") is CookieParam Cookie)
                     await AddAccount(Cookie);
+            }
+        }
+
+        /// <summary>
+        /// Rastreia placeId quando o usuário navega para uma página de jogo.
+        /// </summary>
+        private void Page_FrameNavigated(object sender, FrameEventArgs e)
+        {
+            try
+            {
+                if (e.Frame != page?.MainFrame) return;
+                string frameUrl = e.Frame.Url ?? "";
+                var m = Regex.Match(frameUrl, @"roblox\.com/games/(\d+)");
+                if (m.Success && long.TryParse(m.Groups[1].Value, out long pid))
+                    _lastVisitedPlaceId = pid;
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Detecta quando o usuário entra num jogo pelo navegador e registra no histórico.
+        /// </summary>
+        private void Page_GameJoinRequested(object sender, RequestEventArgs e)
+        {
+            try
+            {
+                var url = new Uri(e.Request.Url);
+                bool isPost = e.Request.Method == HttpMethod.Post;
+                bool isRoblox = url.Host.Contains("roblox.com");
+
+                // Debug: logar todos os POSTs roblox para diagnóstico
+                if (isPost && isRoblox && AccountManager.DebugModeAtivo)
+                    AccountManager.AddLog($"🔍 [Browser] POST → {url.Host}{url.AbsolutePath}");
+
+                // Detectar game join — vários endpoints possíveis
+                bool isGameJoin = isPost && url.Host.Contains("gamejoin.roblox.com");
+                bool isAuthTicket = isPost && url.Host == "auth.roblox.com"
+                    && url.AbsolutePath.Contains("authentication-ticket");
+                bool isGameLaunch = isPost && url.Host.Contains("roblox.com")
+                    && (url.AbsolutePath.Contains("game-launch") || url.AbsolutePath.Contains("join-game")
+                        || url.AbsolutePath.Contains("PlaceLauncher"));
+
+                if (!isGameJoin && !isAuthTicket && !isGameLaunch) return;
+                if (_linkedAccount == null) return;
+
+                // Cooldown de 10s para não logar duplicados
+                if ((DateTime.UtcNow - _lastGameJoinLogTime).TotalSeconds < 10) return;
+
+                long placeId = 0;
+                string debugSource = "nenhuma";
+
+                // 1. Extrair do body do request (gamejoin tem placeId no JSON body)
+                if (e.Request.PostData != null)
+                {
+                    try
+                    {
+                        string postDataStr = e.Request.PostData.ToString();
+                        AccountManager.AddLog($"🔍 [Browser] PostData: {postDataStr.Substring(0, Math.Min(postDataStr.Length, 300))}");
+
+                        var body = JObject.Parse(postDataStr);
+                        placeId = body["placeId"]?.Value<long>() ?? body["PlaceId"]?.Value<long>() ?? 0;
+                        if (placeId > 0) debugSource = "PostData body";
+                    }
+                    catch { }
+                }
+
+                // 2. Tentar extrair do Referer header
+                if (placeId == 0 && e.Request.Headers != null)
+                {
+                    string referer = null;
+                    e.Request.Headers.TryGetValue("Referer", out referer);
+                    if (string.IsNullOrEmpty(referer))
+                        e.Request.Headers.TryGetValue("referer", out referer);
+
+                    if (!string.IsNullOrEmpty(referer))
+                    {
+                        var m = Regex.Match(referer, @"roblox\.com/games/(\d+)");
+                        if (m.Success && long.TryParse(m.Groups[1].Value, out placeId) && placeId > 0)
+                            debugSource = "Referer header";
+                    }
+                }
+
+                // 3. Tentar extrair da URL da página atual
+                if (placeId == 0)
+                {
+                    string pageUrl = page?.Url ?? "";
+                    var m = Regex.Match(pageUrl, @"roblox\.com/games/(\d+)");
+                    if (m.Success && long.TryParse(m.Groups[1].Value, out placeId) && placeId > 0)
+                        debugSource = "Page URL";
+                }
+
+                // 4. Fallback: usar o último placeId visitado (rastreado por FrameNavigated)
+                if (placeId == 0 && _lastVisitedPlaceId > 0)
+                {
+                    placeId = _lastVisitedPlaceId;
+                    debugSource = "FrameNavigated cache";
+                }
+
+                // 5. Tentar extrair placeId da URL do request
+                if (placeId == 0)
+                {
+                    var m = Regex.Match(url.ToString(), @"[?&]placeId=(\d+)");
+                    if (m.Success && long.TryParse(m.Groups[1].Value, out placeId) && placeId > 0)
+                        debugSource = "Request URL query";
+                }
+
+                // Se for auth ticket sem placeId, não logar (esperar o gamejoin real)
+                if (isAuthTicket && placeId == 0) return;
+
+                _lastGameJoinLogTime = DateTime.UtcNow;
+
+                AccountManager.AddLog($"🎮 [Browser] Game join: {_linkedAccount.Username}, placeId={placeId} (fonte: {debugSource}), trigger: {url.Host}{url.AbsolutePath.Substring(0, Math.Min(url.AbsolutePath.Length, 50))}");
+
+                _ = SupabaseManager.Instance.LogAccountAccessAsync(_linkedAccount.Username, placeId);
+            }
+            catch (Exception ex)
+            {
+                AccountManager.AddLog($"❌ [Browser] Erro: {ex.Message}");
             }
         }
 

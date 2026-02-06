@@ -409,7 +409,6 @@
     <Compile Include="Classes\GamesConfig.cs" />
     <Compile Include="Classes\AppSecrets.cs" />
     <Compile Include="Classes\GoogleOAuthManager.cs" />
-    <Compile Include="Classes\GoogleSheetsIntegration.cs" />
     <Compile Include="Classes\PoWSolver.cs" />
     <Compile Include="Classes\PrivateServer.cs" />
     <Compile Include="Classes\AvatarControl.cs">
@@ -517,19 +516,8 @@
     <Compile Include="Controls\InventoryPanelControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Controls\EstoquePanelControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Controls\EstoquePanelControl.Designer.cs">
-      <DependentUpon>EstoquePanelControl.cs</DependentUpon>
-    </Compile>
+    <Compile Include="Classes\InventorySyncService.cs" />
     <Compile Include="Classes\SupabaseManager.cs" />
-    <Compile Include="Controls\GameSelectorPanelControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Controls\GameSelectorPanelControl.Designer.cs">
-      <DependentUpon>GameSelectorPanelControl.cs</DependentUpon>
-    </Compile>
     <Compile Include="AccountManager.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -616,12 +604,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\PrivateServerItem.resx">
       <DependentUpon>PrivateServerItem.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Controls\EstoquePanelControl.resx">
-      <DependentUpon>EstoquePanelControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Controls\GameSelectorPanelControl.resx">
-      <DependentUpon>GameSelectorPanelControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="AccountManager.resx">
       <DependentUpon>AccountManager.cs</DependentUpon>

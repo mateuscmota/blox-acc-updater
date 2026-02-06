@@ -206,32 +206,50 @@ namespace RBX_Alt_Manager
                                 MessageBoxIcon.Error);
                         };
                         
-                        // Tentar restaurar sessão salva
-                        bool sessionRestored = false;
-                        string savedEmail = Properties.Settings.Default.GoogleEmail;
-                        if (!string.IsNullOrEmpty(savedEmail))
+                        try
                         {
-                            var restoreTask = System.Threading.Tasks.Task.Run(async () =>
-                                await Classes.SupabaseManager.Instance.LoginWithGoogleAsync(savedEmail, null));
-                            var (success, _) = restoreTask.Result;
-                            sessionRestored = success;
-                        }
-
-                        if (!sessionRestored)
-                        {
-                            // Sessão não encontrada ou expirada, mostrar tela de login
-                            using (var loginForm = new Forms.LoginForm())
+                            // Tentar restaurar sessão salva
+                            bool sessionRestored = false;
+                            string savedEmail = Properties.Settings.Default.GoogleEmail;
+                            if (!string.IsNullOrEmpty(savedEmail))
                             {
-                                if (loginForm.ShowDialog() != DialogResult.OK || !loginForm.LoginSuccessful)
+                                try
                                 {
-                                    Environment.Exit(0);
-                                    return;
+                                    var restoreTask = System.Threading.Tasks.Task.Run(async () =>
+                                        await Classes.SupabaseManager.Instance.LoginWithGoogleAsync(savedEmail, null));
+                                    var (success, _) = restoreTask.Result;
+                                    sessionRestored = success;
+                                }
+                                catch
+                                {
+                                    sessionRestored = false;
                                 }
                             }
-                        }
 
-                        // Login bem-sucedido, abrir aplicativo principal
-                        Application.Run(new AccountManager());
+                            if (!sessionRestored)
+                            {
+                                // Sessão não encontrada ou expirada, mostrar tela de login
+                                using (var loginForm = new Forms.LoginForm())
+                                {
+                                    if (loginForm.ShowDialog() != DialogResult.OK || !loginForm.LoginSuccessful)
+                                    {
+                                        Environment.Exit(0);
+                                        return;
+                                    }
+                                }
+                            }
+
+                            // Login bem-sucedido, abrir aplicativo principal
+                            Application.Run(new AccountManager());
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show(
+                                $"Erro ao inicializar o aplicativo:\n\n{ex.GetType().Name}: {ex.Message}\n\n{ex.InnerException?.Message}",
+                                "Blox Manager - Erro",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                        }
                     }
                 }
 #if DEBUG

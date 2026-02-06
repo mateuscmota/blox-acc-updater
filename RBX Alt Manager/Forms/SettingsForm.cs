@@ -30,7 +30,7 @@ namespace RBX_Alt_Manager.Forms
             HideMRobloxCB.Checked = AccountManager.General.Get<bool>("HideRbxAlert");
             DisableImagesCB.Checked = AccountManager.General.Get<bool>("DisableImages");
             MultiRobloxCB.Checked = AccountManager.General.Get<bool>("EnableMultiRbx");
-            UseInstalledChromeCB.Checked = AccountManager.General.Get<bool>("UseInstalledChrome");
+
             MaxRecentGamesNumber.Value = AccountManager.General.Get<int>("MaxRecentGames");
 
             EnableDMCB.Checked = AccountManager.Developer.Get<bool>("DevMode");
@@ -61,8 +61,8 @@ namespace RBX_Alt_Manager.Forms
             int addFriendHotkeyIndex = AddFriendHotkeyComboBox.Items.IndexOf(savedAddFriendHotkey);
             AddFriendHotkeyComboBox.SelectedIndex = addFriendHotkeyIndex >= 0 ? addFriendHotkeyIndex : 1;
 
-            // Modo Estoque
-            ModoEstoqueCB.Checked = AccountManager.General.Get<bool>("ModoEstoque");
+            // Debug Mode
+            DebugModeCB.Checked = AccountManager.General.Get<bool>("DebugMode");
 
             if (AccountManager.General.Exists("CustomClientSettings") && File.Exists(AccountManager.General.Get<string>("CustomClientSettings")))
             {
@@ -143,15 +143,13 @@ namespace RBX_Alt_Manager.Forms
             AccountManager.UpdateAddFriendHotkey(selected);
         }
 
-        private void ModoEstoqueCB_CheckedChanged(object sender, EventArgs e)
+        private void DebugModeCB_CheckedChanged(object sender, EventArgs e)
         {
             if (!SettingsLoaded) return;
 
-            AccountManager.General.Set("ModoEstoque", ModoEstoqueCB.Checked ? "true" : "false");
+            AccountManager.General.Set("DebugMode", DebugModeCB.Checked ? "true" : "false");
             AccountManager.IniSettings.Save("RAMSettings.ini");
-            
-            // Atualizar no AccountManager
-            AccountManager.ModoEstoqueAtivo = ModoEstoqueCB.Checked;
+            AccountManager.DebugModeAtivo = DebugModeCB.Checked;
         }
 
         private async void SyncAccountsButton_Click(object sender, EventArgs e)
@@ -257,25 +255,6 @@ namespace RBX_Alt_Manager.Forms
                 MessageBox.Show("Roblox is currently running, multi roblox will not work if roblox is open.", "Roblox Account Manager", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
-        private void UseInstalledChromeCB_CheckedChanged(object sender, EventArgs e)
-        {
-            AccountManager.General.Set("UseInstalledChrome", UseInstalledChromeCB.Checked ? "true" : "false");
-            AccountManager.IniSettings.Save("RAMSettings.ini");
-
-            if (UseInstalledChromeCB.Checked)
-            {
-                string chromePath = Classes.AccountBrowser.GetInstalledChromePath();
-                if (string.IsNullOrEmpty(chromePath))
-                {
-                    MessageBox.Show("Chrome não foi encontrado no seu sistema.\nSerá usado o Chromium embutido.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    UseInstalledChromeCB.Checked = false;
-                }
-                else
-                {
-                    MessageBox.Show($"Chrome encontrado em:\n{chromePath}\n\nO navegador usará o Chrome instalado.", "Chrome Detectado", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            }
-        }
 
 
         private void StartOnPCStartup_CheckedChanged(object sender, EventArgs e)

@@ -27,5 +27,11 @@ x86/
 # Claude Code
 .claude/
 
+# Node
+node_modules/
+
+# Misc
+nul
+
 # Secrets
 secrets.json

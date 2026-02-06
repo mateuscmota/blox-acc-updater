@@ -14,6 +14,10 @@ namespace RBX_Alt_Manager.Controls
 {
     public class FriendsPanelControl : UserControl
     {
+        private static readonly RestClient FriendsApi = new RestClient("https://friends.roblox.com");
+        private static readonly RestClient PresenceApi = new RestClient("https://presence.roblox.com");
+        private static readonly RestClient UsersApi = new RestClient("https://users.roblox.com");
+
         private FlowLayoutPanel friendsFlowPanel;
         private GroupBox addFriendGroupBox;
         private TextBox addFriendTextBox;
@@ -118,7 +122,7 @@ namespace RBX_Alt_Manager.Controls
                 _friends.Clear();
 
                 // 1. Buscar lista de amigos
-                var friendsClient = new RestClient("https://friends.roblox.com");
+                var friendsClient = FriendsApi;
                 var friendsRequest = new RestRequest($"/v1/users/{_account.UserID}/friends", Method.Get);
                 friendsRequest.AddHeader("Cookie", $".ROBLOSECURITY={_account.SecurityToken}");
 
@@ -145,7 +149,7 @@ namespace RBX_Alt_Manager.Controls
                 var friendIds = friendsList.Select(f => f["id"]?.Value<long>() ?? 0).Where(id => id > 0).ToList();
 
                 // 2. Buscar presença de todos os amigos
-                var presenceClient = new RestClient("https://presence.roblox.com");
+                var presenceClient = PresenceApi;
                 var presenceRequest = new RestRequest("/v1/presence/users", Method.Post);
                 presenceRequest.AddHeader("Cookie", $".ROBLOSECURITY={_account.SecurityToken}");
                 presenceRequest.AddHeader("Content-Type", "application/json");
@@ -157,7 +161,7 @@ namespace RBX_Alt_Manager.Controls
                     : null;
 
                 // 3. Buscar usernames (API de friends pode retornar vazio)
-                var usersClient = new RestClient("https://users.roblox.com");
+                var usersClient = UsersApi;
                 var usersRequest = new RestRequest("/v1/users", Method.Post);
                 usersRequest.AddHeader("Content-Type", "application/json");
                 usersRequest.AddJsonBody(new { userIds = friendIds, excludeBannedUsers = false });
@@ -284,7 +288,7 @@ namespace RBX_Alt_Manager.Controls
             try
             {
                 // Buscar ID do usuário
-                var client = new RestClient("https://users.roblox.com");
+                var client = UsersApi;
                 var request = new RestRequest("/v1/usernames/users", Method.Post);
                 request.AddHeader("Content-Type", "application/json");
                 request.AddJsonBody(new { usernames = new[] { username }, excludeBannedUsers = false });

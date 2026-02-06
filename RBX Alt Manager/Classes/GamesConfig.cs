@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Newtonsoft.Json;
 
 namespace RBX_Alt_Manager.Classes
@@ -12,18 +11,7 @@ namespace RBX_Alt_Manager.Classes
         private static readonly object _lock = new object();
         private static string _configPath;
 
-        public string SpreadsheetId { get; set; }
-        public string AppsScriptUrl { get; set; }
-        public PusherConfig Pusher { get; set; }
         public List<GameConfig> Games { get; set; }
-
-        public class PusherConfig
-        {
-            public string AppId { get; set; }
-            public string Key { get; set; }
-            public string Secret { get; set; }
-            public string Cluster { get; set; }
-        }
 
         public class GameConfig
         {
@@ -136,58 +124,12 @@ namespace RBX_Alt_Manager.Classes
         }
 
         /// <summary>
-        /// Retorna os jogos como Dictionary (compatível com código existente)
-        /// </summary>
-        public Dictionary<string, long> GetGamesDictionary()
-        {
-            if (Games == null || Games.Count == 0)
-                return new Dictionary<string, long>();
-
-            return Games.ToDictionary(g => g.Name, g => g.Gid);
-        }
-
-        /// <summary>
-        /// Adiciona um novo jogo
-        /// </summary>
-        public void AddGame(string name, long gid)
-        {
-            if (Games == null)
-                Games = new List<GameConfig>();
-
-            // Verificar se já existe
-            if (Games.Any(g => g.Gid == gid || g.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                return;
-
-            Games.Add(new GameConfig { Name = name, Gid = gid });
-            Save();
-        }
-
-        /// <summary>
-        /// Remove um jogo
-        /// </summary>
-        public void RemoveGame(long gid)
-        {
-            if (Games == null) return;
-            Games.RemoveAll(g => g.Gid == gid);
-            Save();
-        }
-
-        /// <summary>
         /// Cria configuração padrão
         /// </summary>
         private static GamesConfig CreateDefault()
         {
             return new GamesConfig
             {
-                SpreadsheetId = "1__lG_K1GbwNYjdrt1DAgkw5DX_vsnM62ohMLkFEw-CM",
-                AppsScriptUrl = "https://script.google.com/macros/s/AKfycbzMPPx6Nnbjnh0s8LY7XhK4u5S7TwdVOUdHhZn3vY9ShdHv83e0JEncUEVi8e_NWMEp/exec",
-                Pusher = new PusherConfig
-                {
-                    AppId = "2109797",
-                    Key = "57bd748f4c7f9a3be25b",
-                    Secret = "3dd8ccfd8be167d0cc2d",
-                    Cluster = "sa1"
-                },
                 Games = new List<GameConfig>
                 {
                     new GameConfig { Name = "Steal A Brainrot", Gid = 1637218332 },

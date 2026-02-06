@@ -124,3 +124,56 @@ CREATE POLICY "Allow insert for all" ON allowed_emails
 
 -- Restaurar conta arquivada:
 -- UPDATE accounts SET archived = false WHERE username = 'nome_usuario';
+
+-- =====================================================
+-- HISTÓRICO DE ACESSO POR CONTA
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS account_history (
+    id SERIAL PRIMARY KEY,
+    account_username VARCHAR(100) NOT NULL,
+    user_email VARCHAR(255) NOT NULL,
+    user_display_name VARCHAR(100),
+    action VARCHAR(50) DEFAULT 'launch',
+    place_id BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_account_history_username ON account_history(account_username);
+CREATE INDEX IF NOT EXISTS idx_account_history_created ON account_history(created_at DESC);
+
+ALTER TABLE account_history ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow select for all" ON account_history
+    FOR SELECT USING (true);
+
+CREATE POLICY "Allow insert for all" ON account_history
+    FOR INSERT WITH CHECK (true);
+
+-- Coluna 'game_name' para armazenar o nome do jogo (buscado via API Roblox)
+ALTER TABLE account_history ADD COLUMN IF NOT EXISTS game_name VARCHAR(255);
+
+-- =====================================================
+-- CONFIGURAÇÕES COMPARTILHADAS (app_config)
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS app_config (
+    key VARCHAR(100) PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow select for all" ON app_config
+    FOR SELECT USING (true);
+
+CREATE POLICY "Allow insert for all" ON app_config
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow update for all" ON app_config
+    FOR UPDATE USING (true);
+
+-- Inserir cookie inicial do TopUpG
+INSERT INTO app_config (key, value) VALUES ('topupg_cookie', 'eyJpdiI6Im5ISGI0YXFYbUpKVkZxcEp1Y0FyaVE9PSIsInZhbHVlIjoiUHdJNDBsdy83VEt4amRSWFYzSUp1OGhiVUV2OURaNnhKWWE3NFcxdkNtY3oyb1NPbEtnc29ObkRMbWh2eEYrV3F1bk5ISi9JUW9vRXhWaFY0b2tubXdxTlJRazdnT2drZXJUK1VyYlZNV1V0QitCZXk4UlhHR3hseHplN2dFRHQiLCJtYWMiOiJlNzJmNDgwZGMyNWUzNzE2YWU4MjExY2I4NWY4NGFlNjRkNzUwNDE4MWI3NjUyZjNlOGFmMTliZDJhN2M0MDFkIiwidGFnIjoiIn0%3D')
+ON CONFLICT (key) DO NOTHING;

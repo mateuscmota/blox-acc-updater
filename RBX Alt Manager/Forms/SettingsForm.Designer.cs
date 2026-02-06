@@ -40,14 +40,14 @@ namespace RBX_Alt_Manager.Forms
             this.HideMRobloxCB = new System.Windows.Forms.CheckBox();
             this.StartOnPCStartup = new System.Windows.Forms.CheckBox();
             this.MultiRobloxCB = new System.Windows.Forms.CheckBox();
-            this.UseInstalledChromeCB = new System.Windows.Forms.CheckBox();
+
             this.MRGLabel = new System.Windows.Forms.Label();
             this.MaxRecentGamesNumber = new System.Windows.Forms.NumericUpDown();
             this.TwoFAHotkeyLabel = new System.Windows.Forms.Label();
             this.TwoFAHotkeyComboBox = new System.Windows.Forms.ComboBox();
             this.AddFriendHotkeyLabel = new System.Windows.Forms.Label();
             this.AddFriendHotkeyComboBox = new System.Windows.Forms.ComboBox();
-            this.ModoEstoqueCB = new System.Windows.Forms.CheckBox();
+            this.DebugModeCB = new System.Windows.Forms.CheckBox();
             this.SyncAccountsButton = new System.Windows.Forms.Button();
             this.LogoutButton = new System.Windows.Forms.Button();
             this.Helper = new System.Windows.Forms.ToolTip(this.components);
@@ -102,14 +102,14 @@ namespace RBX_Alt_Manager.Forms
             this.SettingsLayoutPanel.Controls.Add(this.HideMRobloxCB);
             this.SettingsLayoutPanel.Controls.Add(this.StartOnPCStartup);
             this.SettingsLayoutPanel.Controls.Add(this.MultiRobloxCB);
-            this.SettingsLayoutPanel.Controls.Add(this.UseInstalledChromeCB);
+
             this.SettingsLayoutPanel.Controls.Add(this.MRGLabel);
             this.SettingsLayoutPanel.Controls.Add(this.MaxRecentGamesNumber);
             this.SettingsLayoutPanel.Controls.Add(this.TwoFAHotkeyLabel);
             this.SettingsLayoutPanel.Controls.Add(this.TwoFAHotkeyComboBox);
             this.SettingsLayoutPanel.Controls.Add(this.AddFriendHotkeyLabel);
             this.SettingsLayoutPanel.Controls.Add(this.AddFriendHotkeyComboBox);
-            this.SettingsLayoutPanel.Controls.Add(this.ModoEstoqueCB);
+            this.SettingsLayoutPanel.Controls.Add(this.DebugModeCB);
             this.SettingsLayoutPanel.Controls.Add(this.SyncAccountsButton);
             this.SettingsLayoutPanel.Controls.Add(this.LogoutButton);
             this.SettingsLayoutPanel.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -212,18 +212,6 @@ namespace RBX_Alt_Manager.Forms
             this.MultiRobloxCB.Text = "Multi Roblox";
             this.MultiRobloxCB.UseVisualStyleBackColor = true;
             this.MultiRobloxCB.CheckedChanged += new System.EventHandler(this.MultiRobloxCB_CheckedChanged);
-            // 
-            // UseInstalledChromeCB
-            // 
-            this.UseInstalledChromeCB.AutoSize = true;
-            this.SettingsLayoutPanel.SetFlowBreak(this.UseInstalledChromeCB, true);
-            this.UseInstalledChromeCB.Location = new System.Drawing.Point(15, 130);
-            this.UseInstalledChromeCB.Name = "UseInstalledChromeCB";
-            this.UseInstalledChromeCB.Size = new System.Drawing.Size(133, 17);
-            this.UseInstalledChromeCB.TabIndex = 25;
-            this.UseInstalledChromeCB.Text = "Usar Chrome Instalado";
-            this.UseInstalledChromeCB.UseVisualStyleBackColor = true;
-            this.UseInstalledChromeCB.CheckedChanged += new System.EventHandler(this.UseInstalledChromeCB_CheckedChanged);
             // 
             // MRGLabel
             // 
@@ -335,19 +323,18 @@ namespace RBX_Alt_Manager.Forms
             this.AddFriendHotkeyComboBox.Size = new System.Drawing.Size(90, 21);
             this.AddFriendHotkeyComboBox.TabIndex = 23;
             this.AddFriendHotkeyComboBox.SelectedIndexChanged += new System.EventHandler(this.AddFriendHotkeyComboBox_SelectedIndexChanged);
-            // 
-            // ModoEstoqueCB
-            // 
-            this.ModoEstoqueCB.AutoSize = true;
-            this.SettingsLayoutPanel.SetFlowBreak(this.ModoEstoqueCB, true);
-            this.ModoEstoqueCB.Location = new System.Drawing.Point(15, 218);
-            this.ModoEstoqueCB.Name = "ModoEstoqueCB";
-            this.ModoEstoqueCB.Size = new System.Drawing.Size(95, 17);
-            this.ModoEstoqueCB.TabIndex = 24;
-            this.ModoEstoqueCB.Text = "Modo Estoque";
-            this.ModoEstoqueCB.UseVisualStyleBackColor = true;
-            this.ModoEstoqueCB.CheckedChanged += new System.EventHandler(this.ModoEstoqueCB_CheckedChanged);
-            // 
+            //
+            // DebugModeCB
+            //
+            this.DebugModeCB.AutoSize = true;
+            this.SettingsLayoutPanel.SetFlowBreak(this.DebugModeCB, true);
+            this.DebugModeCB.Name = "DebugModeCB";
+            this.DebugModeCB.Size = new System.Drawing.Size(95, 17);
+            this.DebugModeCB.TabIndex = 25;
+            this.DebugModeCB.Text = "Debug Mode";
+            this.DebugModeCB.UseVisualStyleBackColor = true;
+            this.DebugModeCB.CheckedChanged += new System.EventHandler(this.DebugModeCB_CheckedChanged);
+            //
             // SyncAccountsButton
             // 
             this.SyncAccountsButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(120)))), ((int)(((byte)(180)))));
@@ -817,7 +804,7 @@ namespace RBX_Alt_Manager.Forms
         private System.Windows.Forms.NumericUpDown MaxFPSValue;
         private System.Windows.Forms.CheckBox OverrideWithCustomCB;
         private System.Windows.Forms.CheckBox MultiRobloxCB;
-        private System.Windows.Forms.CheckBox UseInstalledChromeCB;
+
         private System.Windows.Forms.CheckBox PresenceCB;
         private System.Windows.Forms.Label PresenceUpdateLabel;
         private System.Windows.Forms.NumericUpDown PresenceUpdateRateNum;
@@ -827,7 +814,7 @@ namespace RBX_Alt_Manager.Forms
         private System.Windows.Forms.ComboBox TwoFAHotkeyComboBox;
         private System.Windows.Forms.Label AddFriendHotkeyLabel;
         private System.Windows.Forms.ComboBox AddFriendHotkeyComboBox;
-        private System.Windows.Forms.CheckBox ModoEstoqueCB;
+        private System.Windows.Forms.CheckBox DebugModeCB;
         private System.Windows.Forms.Button SyncAccountsButton;
         private System.Windows.Forms.Button LogoutButton;
     }

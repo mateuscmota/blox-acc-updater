@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -21,6 +22,16 @@ namespace RBX_Alt_Manager.Classes
         private static readonly string SUPABASE_KEY = AppSecrets.SupabaseKey;
 
         private readonly HttpClient _client;
+
+        // Cache para reduzir chamadas API redundantes
+        private List<SupabaseGame> _cachedGames;
+        private List<SupabaseGameItem> _cachedAllItems;
+        private DateTime _gamesCacheTime = DateTime.MinValue;
+        private DateTime _itemsCacheTime = DateTime.MinValue;
+        private const int CACHE_TTL_SECONDS = 300; // 5 minutos
+
+        public void InvalidateGamesCache() { _cachedGames = null; _gamesCacheTime = DateTime.MinValue; }
+        public void InvalidateItemsCache() { _cachedAllItems = null; _itemsCacheTime = DateTime.MinValue; }
 
         // Propriedades de autenticação
         public bool IsAuthenticated { get; private set; }
@@ -388,24 +399,27 @@ namespace RBX_Alt_Manager.Classes
         /// </summary>
         public async Task<List<SupabaseGame>> GetGamesAsync()
         {
+            // Retornar cache se válido
+            if (_cachedGames != null && (DateTime.UtcNow - _gamesCacheTime).TotalSeconds < CACHE_TTL_SECONDS)
+                return _cachedGames;
+
             try
             {
-                // Busca todos os jogos não arquivados
                 var response = await _client.GetAsync($"{SUPABASE_URL}/rest/v1/games?select=*&order=name&limit=1000");
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
                     var games = JsonConvert.DeserializeObject<List<SupabaseGame>>(json) ?? new List<SupabaseGame>();
-                    
-                    // Filtrar arquivados localmente (caso a coluna exista)
-                    return games.Where(g => !g.Archived).ToList();
+                    _cachedGames = games.Where(g => !g.Archived).ToList();
+                    _gamesCacheTime = DateTime.UtcNow;
+                    return _cachedGames;
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Erro ao buscar jogos: {ex.Message}");
             }
-            return new List<SupabaseGame>();
+            return _cachedGames ?? new List<SupabaseGame>();
         }
 
         /// <summary>
@@ -426,6 +440,7 @@ namespace RBX_Alt_Manager.Classes
                 var response = await _client.SendAsync(request);
                 if (response.IsSuccessStatusCode)
                 {
+                    InvalidateGamesCache();
                     var responseJson = await response.Content.ReadAsStringAsync();
                     var games = JsonConvert.DeserializeObject<List<SupabaseGame>>(responseJson);
                     return games?.Count > 0 ? games[0] : null;
@@ -509,6 +524,45 @@ namespace RBX_Alt_Manager.Classes
         }
 
         /// <summary>
+        /// Atualiza nome e place_id do jogo
+        /// </summary>
+        public async Task<bool> UpdateGameDetailsAsync(int gameId, string name, long? placeId)
+        {
+            try
+            {
+                var data = new Dictionary<string, object>
+                {
+                    ["name"] = name,
+                    ["updated_at"] = DateTime.UtcNow
+                };
+                if (placeId.HasValue && placeId.Value > 0)
+                    data["place_id"] = placeId.Value;
+                else
+                    data["place_id"] = null;
+
+                var json = JsonConvert.SerializeObject(data);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var request = CreatePatchRequest($"{SUPABASE_URL}/rest/v1/games?id=eq.{gameId}", content);
+
+                var response = await _client.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Erro Supabase update game details: {response.StatusCode} - {errorContent}");
+                }
+
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao atualizar detalhes do jogo: {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Arquiva um jogo (soft delete)
         /// </summary>
         public async Task<bool> ArchiveGameAsync(int gameId, bool archived = true)
@@ -528,7 +582,12 @@ namespace RBX_Alt_Manager.Classes
                     var errorContent = await response.Content.ReadAsStringAsync();
                     Console.WriteLine($"Erro Supabase archive game: {response.StatusCode} - {errorContent}");
                 }
-                
+
+                if (response.IsSuccessStatusCode)
+                {
+                    InvalidateGamesCache();
+                }
+
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -547,23 +606,9 @@ namespace RBX_Alt_Manager.Classes
         /// </summary>
         public async Task<List<SupabaseGameItem>> GetGameItemsAsync(int gameId)
         {
-            try
-            {
-                var response = await _client.GetAsync($"{SUPABASE_URL}/rest/v1/game_items?game_id=eq.{gameId}&select=*&order=name");
-                if (response.IsSuccessStatusCode)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    var items = JsonConvert.DeserializeObject<List<SupabaseGameItem>>(json) ?? new List<SupabaseGameItem>();
-                    
-                    // Filtrar arquivados localmente (caso a coluna exista)
-                    return items.Where(i => !i.Archived).ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Erro ao buscar itens: {ex.Message}");
-            }
-            return new List<SupabaseGameItem>();
+            // Usar cache global se disponível (filtrando por gameId)
+            var allItems = await GetAllGameItemsAsync();
+            return allItems.Where(i => i.GameId == gameId).ToList();
         }
 
         /// <summary>
@@ -571,6 +616,10 @@ namespace RBX_Alt_Manager.Classes
         /// </summary>
         public async Task<List<SupabaseGameItem>> GetAllGameItemsAsync()
         {
+            // Retornar cache se válido
+            if (_cachedAllItems != null && (DateTime.UtcNow - _itemsCacheTime).TotalSeconds < CACHE_TTL_SECONDS)
+                return _cachedAllItems;
+
             try
             {
                 var response = await _client.GetAsync($"{SUPABASE_URL}/rest/v1/game_items?select=*&order=name");
@@ -578,14 +627,16 @@ namespace RBX_Alt_Manager.Classes
                 {
                     var json = await response.Content.ReadAsStringAsync();
                     var items = JsonConvert.DeserializeObject<List<SupabaseGameItem>>(json) ?? new List<SupabaseGameItem>();
-                    return items.Where(i => !i.Archived).ToList();
+                    _cachedAllItems = items.Where(i => !i.Archived).ToList();
+                    _itemsCacheTime = DateTime.UtcNow;
+                    return _cachedAllItems;
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Erro ao buscar todos os itens: {ex.Message}");
             }
-            return new List<SupabaseGameItem>();
+            return _cachedAllItems ?? new List<SupabaseGameItem>();
         }
 
         /// <summary>
@@ -606,6 +657,7 @@ namespace RBX_Alt_Manager.Classes
                 var response = await _client.SendAsync(request);
                 if (response.IsSuccessStatusCode)
                 {
+                    InvalidateItemsCache();
                     var responseJson = await response.Content.ReadAsStringAsync();
                     var items = JsonConvert.DeserializeObject<List<SupabaseGameItem>>(responseJson);
                     return items?.Count > 0 ? items[0] : null;
@@ -708,7 +760,12 @@ namespace RBX_Alt_Manager.Classes
                     var errorContent = await response.Content.ReadAsStringAsync();
                     Console.WriteLine($"Erro Supabase archive item: {response.StatusCode} - {errorContent}");
                 }
-                
+
+                if (response.IsSuccessStatusCode)
+                {
+                    InvalidateItemsCache();
+                }
+
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -865,59 +922,40 @@ namespace RBX_Alt_Manager.Classes
         {
             try
             {
-                // Primeiro, verificar se já existe um registro
-                var checkResponse = await _client.GetAsync(
-                    $"{SUPABASE_URL}/rest/v1/inventory?username=eq.{Uri.EscapeDataString(username)}&item_id=eq.{itemId}&select=id");
-                
-                var checkContent = await checkResponse.Content.ReadAsStringAsync();
-                var existingRecords = JsonConvert.DeserializeObject<List<dynamic>>(checkContent);
-                
-                if (existingRecords != null && existingRecords.Count > 0)
+                var data = new { username = username, item_id = itemId, quantity = quantity, updated_at = DateTime.UtcNow };
+                var json = JsonConvert.SerializeObject(data);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{SUPABASE_URL}/rest/v1/inventory?on_conflict=username,item_id");
+                request.Content = content;
+                request.Headers.Add("Prefer", "resolution=merge-duplicates,return=representation");
+
+                var response = await _client.SendAsync(request);
+
+                if (response.IsSuccessStatusCode)
                 {
-                    // UPDATE - registro já existe
-                    int existingId = (int)existingRecords[0].id;
-                    var updateData = new { quantity = quantity, updated_at = DateTime.UtcNow };
-                    var updateJson = JsonConvert.SerializeObject(updateData);
-                    var updateContent = new StringContent(updateJson, Encoding.UTF8, "application/json");
-                    
-                    var updateRequest = CreatePatchRequest($"{SUPABASE_URL}/rest/v1/inventory?id=eq.{existingId}", updateContent);
-                    var updateResponse = await _client.SendAsync(updateRequest);
-                    
-                    if (!updateResponse.IsSuccessStatusCode)
+                    try
                     {
-                        var errorContent = await updateResponse.Content.ReadAsStringAsync();
-                        Console.WriteLine($"Erro Supabase UPDATE inventory: {updateResponse.StatusCode} - {errorContent}");
+                        var responseJson = await response.Content.ReadAsStringAsync();
+                        var entries = JsonConvert.DeserializeObject<List<SupabaseInventoryEntry>>(responseJson);
+                        if (entries?.Count > 0)
+                            InventorySyncService.Instance.MarkLocalUpdate(entries[0].Id);
                     }
-                    
-                    return updateResponse.IsSuccessStatusCode;
+                    catch { }
                 }
                 else
                 {
-                    // INSERT - novo registro
-                    var insertData = new { username = username, item_id = itemId, quantity = quantity };
-                    var insertJson = JsonConvert.SerializeObject(insertData);
-                    var insertContent = new StringContent(insertJson, Encoding.UTF8, "application/json");
-                    
-                    var insertRequest = new HttpRequestMessage(HttpMethod.Post, $"{SUPABASE_URL}/rest/v1/inventory");
-                    insertRequest.Content = insertContent;
-                    insertRequest.Headers.Add("Prefer", "return=representation");
-                    
-                    var insertResponse = await _client.SendAsync(insertRequest);
-                    
-                    if (!insertResponse.IsSuccessStatusCode)
-                    {
-                        var errorContent = await insertResponse.Content.ReadAsStringAsync();
-                        Console.WriteLine($"Erro Supabase INSERT inventory: {insertResponse.StatusCode} - {errorContent}");
-                    }
-                    
-                    return insertResponse.IsSuccessStatusCode;
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Erro Supabase UPSERT inventory: {response.StatusCode} - {errorContent}");
                 }
+
+                return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao atualizar inventário: {ex.Message}");
+                Console.WriteLine($"Erro ao upsert inventário: {ex.Message}");
+                return false;
             }
-            return false;
         }
 
         /// <summary>
@@ -934,6 +972,8 @@ namespace RBX_Alt_Manager.Classes
                 var request = CreatePatchRequest($"{SUPABASE_URL}/rest/v1/inventory?id=eq.{inventoryId}", content);
 
                 var response = await _client.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                    InventorySyncService.Instance.MarkLocalUpdate(inventoryId);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -1175,11 +1215,18 @@ namespace RBX_Alt_Manager.Classes
         public async Task<int> SyncAccountsToCloudAsync(List<(string username, string cookie, long? userId)> localAccounts)
         {
             int synced = 0;
-            foreach (var account in localAccounts)
+            var semaphore = new SemaphoreSlim(5);
+            var tasks = localAccounts.Select(async account =>
             {
-                var result = await UpsertAccountAsync(account.username, account.cookie, account.userId);
-                if (result != null) synced++;
-            }
+                await semaphore.WaitAsync();
+                try
+                {
+                    var result = await UpsertAccountAsync(account.username, account.cookie, account.userId);
+                    if (result != null) Interlocked.Increment(ref synced);
+                }
+                finally { semaphore.Release(); }
+            });
+            await Task.WhenAll(tasks);
             return synced;
         }
 
@@ -1189,7 +1236,199 @@ namespace RBX_Alt_Manager.Classes
         public async Task<List<SupabaseAccount>> GetNewAccountsFromCloudAsync(List<string> localUsernames)
         {
             var allAccounts = await GetAccountsAsync();
-            return allAccounts.Where(a => !localUsernames.Contains(a.Username)).ToList();
+            var localSet = new HashSet<string>(localUsernames, StringComparer.OrdinalIgnoreCase);
+            return allAccounts.Where(a => !localSet.Contains(a.Username)).ToList();
+        }
+
+        #endregion
+
+        #region Account History
+
+        /// <summary>
+        /// Busca o nome do jogo via API pública do Roblox a partir do PlaceID.
+        /// </summary>
+        // HttpClient sem headers do Supabase para chamadas à API Roblox
+        private static readonly HttpClient _robloxClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+
+        public async Task<string> GetGameNameByPlaceIdAsync(long placeId)
+        {
+            try
+            {
+                // 1. Obter universeId a partir do placeId
+                var universeResponse = await _robloxClient.GetStringAsync(
+                    $"https://apis.roblox.com/universes/v1/places/{placeId}/universe");
+                var universeData = JObject.Parse(universeResponse);
+                long universeId = universeData["universeId"]?.Value<long>() ?? 0;
+                if (universeId == 0)
+                {
+                    if (AccountManager.DebugModeAtivo)
+                        AccountManager.AddLog($"⚠️ [GameName] universeId=0 para placeId={placeId}, response: {universeResponse.Substring(0, Math.Min(universeResponse.Length, 200))}");
+                    return null;
+                }
+
+                // 2. Obter detalhes do jogo a partir do universeId
+                var gameResponse = await _robloxClient.GetStringAsync(
+                    $"https://games.roblox.com/v1/games?universeIds={universeId}");
+                var gameData = JObject.Parse(gameResponse);
+                var gameName = gameData["data"]?[0]?["name"]?.Value<string>();
+
+                if (AccountManager.DebugModeAtivo)
+                    AccountManager.AddLog($"🔍 [GameName] placeId={placeId} → universeId={universeId} → \"{gameName}\"");
+
+                return gameName;
+            }
+            catch (Exception ex)
+            {
+                if (AccountManager.DebugModeAtivo)
+                    AccountManager.AddLog($"❌ [GameName] Erro para placeId={placeId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task LogAccountAccessAsync(string accountUsername, long placeId = 0)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(accountUsername)) return;
+
+                var email = CurrentUser?.Email ?? CurrentUser?.Username ?? Environment.MachineName;
+                var displayName = CurrentUser?.DisplayName ?? CurrentUser?.Username ?? Environment.MachineName;
+
+                // Buscar nome do jogo via API Roblox
+                string gameName = null;
+                if (placeId > 0)
+                {
+                    try { gameName = await GetGameNameByPlaceIdAsync(placeId); } catch { }
+                }
+
+                // Tentar INSERT com game_name; se falhar (coluna pode não existir), tentar sem
+                bool success = await TryInsertHistoryAsync(accountUsername, email, displayName, placeId, gameName);
+                if (!success)
+                {
+                    // Retry sem game_name caso a coluna não exista no Supabase
+                    success = await TryInsertHistoryAsync(accountUsername, email, displayName, placeId, null);
+                }
+
+                AccountManager.AddLog($"📝 [History] {accountUsername}: placeId={placeId}, game={gameName ?? "—"}, saved={success}");
+            }
+            catch (Exception ex)
+            {
+                AccountManager.AddLog($"❌ [History] Erro: {ex.Message}");
+            }
+        }
+
+        private async Task<bool> TryInsertHistoryAsync(string accountUsername, string email, string displayName, long placeId, string gameName)
+        {
+            var dataDict = new Dictionary<string, object>
+            {
+                ["account_username"] = accountUsername,
+                ["user_email"] = email,
+                ["user_display_name"] = displayName,
+                ["action"] = "launch",
+                ["place_id"] = placeId > 0 ? (object)placeId : null
+            };
+
+            if (gameName != null)
+                dataDict["game_name"] = gameName;
+
+            var json = JsonConvert.SerializeObject(dataDict);
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{SUPABASE_URL}/rest/v1/account_history");
+            request.Headers.Add("apikey", SUPABASE_KEY);
+            request.Headers.Add("Authorization", $"Bearer {SUPABASE_KEY}");
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _client.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errBody = await response.Content.ReadAsStringAsync();
+                if (AccountManager.DebugModeAtivo)
+                    AccountManager.AddLog($"⚠️ [History] POST falhou [{(int)response.StatusCode}]: {errBody}");
+            }
+
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<List<AccountHistoryEntry>> GetAccountHistoryAsync(string accountUsername)
+        {
+            try
+            {
+                var encodedUsername = Uri.EscapeDataString(accountUsername);
+                var request = new HttpRequestMessage(HttpMethod.Get,
+                    $"{SUPABASE_URL}/rest/v1/account_history?account_username=eq.{encodedUsername}&order=created_at.desc&limit=50");
+                request.Headers.Add("apikey", SUPABASE_KEY);
+                request.Headers.Add("Authorization", $"Bearer {SUPABASE_KEY}");
+
+                var response = await _client.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    return JsonConvert.DeserializeObject<List<AccountHistoryEntry>>(content) ?? new List<AccountHistoryEntry>();
+                }
+            }
+            catch { }
+
+            return new List<AccountHistoryEntry>();
+        }
+
+        #endregion
+
+        #region Shared Config (app_config table)
+
+        /// <summary>
+        /// Busca valor de configuração compartilhada do Supabase
+        /// </summary>
+        public async Task<string> GetSharedConfigAsync(string key)
+        {
+            try
+            {
+                var response = await _client.GetAsync(
+                    $"{SUPABASE_URL}/rest/v1/app_config?key=eq.{Uri.EscapeDataString(key)}&select=value");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    var entries = JsonConvert.DeserializeObject<List<AppConfigEntry>>(json);
+                    return entries?.FirstOrDefault()?.Value;
+                }
+            }
+            catch (Exception ex)
+            {
+                if (AccountManager.DebugModeAtivo)
+                    System.Diagnostics.Debug.WriteLine($"[Supabase] GetSharedConfig error: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Salva/atualiza configuração compartilhada no Supabase (upsert)
+        /// </summary>
+        public async Task<bool> SetSharedConfigAsync(string key, string value)
+        {
+            try
+            {
+                var payload = JsonConvert.SerializeObject(new
+                {
+                    key = key,
+                    value = value,
+                    updated_at = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ")
+                });
+
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{SUPABASE_URL}/rest/v1/app_config")
+                {
+                    Content = new StringContent(payload, Encoding.UTF8, "application/json")
+                };
+                request.Headers.Add("Prefer", "resolution=merge-duplicates");
+
+                var response = await _client.SendAsync(request);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                if (AccountManager.DebugModeAtivo)
+                    System.Diagnostics.Debug.WriteLine($"[Supabase] SetSharedConfig error: {ex.Message}");
+                return false;
+            }
         }
 
         #endregion
@@ -1207,6 +1446,9 @@ namespace RBX_Alt_Manager.Classes
 
         [JsonProperty("image_url")]
         public string ImageUrl { get; set; }
+
+        [JsonProperty("place_id")]
+        public long? PlaceId { get; set; }
 
         [JsonProperty("archived")]
         public bool Archived { get; set; }
@@ -1333,6 +1575,45 @@ namespace RBX_Alt_Manager.Classes
 
         [JsonProperty("updated_at")]
         public DateTime UpdatedAt { get; set; }
+    }
+
+    public class AccountHistoryEntry
+    {
+        [JsonProperty("id")]
+        public int Id { get; set; }
+
+        [JsonProperty("account_username")]
+        public string AccountUsername { get; set; }
+
+        [JsonProperty("user_email")]
+        public string UserEmail { get; set; }
+
+        [JsonProperty("user_display_name")]
+        public string UserDisplayName { get; set; }
+
+        [JsonProperty("action")]
+        public string Action { get; set; }
+
+        [JsonProperty("place_id")]
+        public long? PlaceId { get; set; }
+
+        [JsonProperty("game_name")]
+        public string GameName { get; set; }
+
+        [JsonProperty("created_at")]
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class AppConfigEntry
+    {
+        [JsonProperty("key")]
+        public string Key { get; set; }
+
+        [JsonProperty("value")]
+        public string Value { get; set; }
+
+        [JsonProperty("updated_at")]
+        public DateTime? UpdatedAt { get; set; }
     }
 
     #endregion

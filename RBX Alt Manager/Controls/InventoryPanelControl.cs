@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -17,6 +18,11 @@ namespace RBX_Alt_Manager.Controls
     /// </summary>
     public partial class InventoryPanelControl : UserControl
     {
+        // P/Invoke para placeholder nativo do TextBox
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, string lParam);
+        private const int EM_SETCUEBANNER = 0x1501;
+
         // Debounce
         private Dictionary<string, CancellationTokenSource> _debounceTokens = new Dictionary<string, CancellationTokenSource>();
         private const int DEBOUNCE_DELAY_MS = 1500;
@@ -32,7 +38,9 @@ namespace RBX_Alt_Manager.Controls
         private bool _emptyAccountsMode = false;
         private SupabaseGame _emptyAccountsSelectedGame = null;
         private List<SupabaseAccount> _allAccounts = new List<SupabaseAccount>();
-        
+        private List<SupabaseAccount> _cachedEmptyAccounts = null;
+        private bool _suppressSearchFilter = false;
+
         // Favoritos
         private HashSet<int> _favoriteGames = new HashSet<int>();
         private string _favoritesFilePath;
@@ -41,9 +49,26 @@ namespace RBX_Alt_Manager.Controls
         private string _searchText = "";
         private TextBox _searchBox;
         private Panel _searchPanel;
+        private System.Windows.Forms.Timer _searchDebounceTimer;
         
         // Guarda de re-entrância para evitar RefreshItemsPanel ser chamado recursivamente
         private bool _isRefreshingItems = false;
+
+        // Cooldown para bloquear refreshes externos (Pusher/Realtime) após ação do usuário
+        private DateTime _lastUserActionTime = DateTime.MinValue;
+        private const int USER_ACTION_COOLDOWN_SECONDS = 5;
+
+        private static readonly Random _rng = new Random();
+
+        // Fonts reutilizáveis (evita criar novos objetos Font por controle)
+        private static readonly Font F7 = new Font("Segoe UI", 7F);
+        private static readonly Font F7_5B = new Font("Segoe UI", 7.5F, FontStyle.Bold);
+        private static readonly Font F8 = new Font("Segoe UI", 8F);
+        private static readonly Font F8B = new Font("Segoe UI", 8F, FontStyle.Bold);
+        private static readonly Font F8_5 = new Font("Segoe UI", 8.5F);
+        private static readonly Font F9 = new Font("Segoe UI", 9F);
+        private static readonly Font F9B = new Font("Segoe UI", 9F, FontStyle.Bold);
+        private static readonly Font F12 = new Font("Segoe UI", 12F);
 
         // Eventos
         public event EventHandler<string> LogMessage;
@@ -73,6 +98,10 @@ namespace RBX_Alt_Manager.Controls
         /// </summary>
         public void UpdateInventoryQuantity(int inventoryId, long newQuantity)
         {
+            // Ignorar updates externos durante edição local
+            if ((DateTime.UtcNow - _lastUserActionTime).TotalSeconds < USER_ACTION_COOLDOWN_SECONDS)
+                return;
+
             // Atualizar no cache local
             int itemId = -1;
             foreach (var kvp in _inventoryByItem)
@@ -113,6 +142,13 @@ namespace RBX_Alt_Manager.Controls
             if (!_gameItems.Any(i => i.Id == itemId))
                 return;
 
+            // Cooldown: não recarregar se o usuário acabou de fazer uma ação manual
+            if ((DateTime.UtcNow - _lastUserActionTime).TotalSeconds < USER_ACTION_COOLDOWN_SECONDS)
+            {
+                LogDebug($"[DEBUG] RefreshIfCurrentGameItem IGNORADO (cooldown {USER_ACTION_COOLDOWN_SECONDS}s após ação do usuário)");
+                return;
+            }
+
             // Recarregar o jogo atual para pegar a nova conta
             if (InvokeRequired)
             {
@@ -132,6 +168,13 @@ namespace RBX_Alt_Manager.Controls
         {
             if (_selectedGame == null || _selectedGame.Id != gameId)
                 return;
+
+            // Cooldown: não recarregar se o usuário acabou de fazer uma ação manual
+            if ((DateTime.UtcNow - _lastUserActionTime).TotalSeconds < USER_ACTION_COOLDOWN_SECONDS)
+            {
+                LogDebug($"[DEBUG] RefreshIfCurrentGame IGNORADO (cooldown {USER_ACTION_COOLDOWN_SECONDS}s após ação do usuário)");
+                return;
+            }
 
             if (InvokeRequired)
             {
@@ -212,7 +255,7 @@ namespace RBX_Alt_Manager.Controls
             _backButton = new Button
             {
                 Text = "← Voltar",
-                Font = new Font("Segoe UI", 7F),
+                Font = F7,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(60, 60, 60),
                 FlatStyle = FlatStyle.Flat,
@@ -228,7 +271,7 @@ namespace RBX_Alt_Manager.Controls
             _titleLabel = new Label
             {
                 Text = "INVENTÁRIO",
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = F9B,
                 ForeColor = Color.White,
                 Location = new Point(5, 8),
                 AutoSize = true
@@ -238,7 +281,7 @@ namespace RBX_Alt_Manager.Controls
             _addButton = new Button
             {
                 Text = "+ Jogo",
-                Font = new Font("Segoe UI", 7F),
+                Font = F7,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(0, 120, 0),
                 FlatStyle = FlatStyle.Flat,
@@ -253,7 +296,7 @@ namespace RBX_Alt_Manager.Controls
             _refreshButton = new Button
             {
                 Text = "🔄",
-                Font = new Font("Segoe UI", 8F),
+                Font = F8,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(60, 60, 60),
                 FlatStyle = FlatStyle.Flat,
@@ -270,26 +313,39 @@ namespace RBX_Alt_Manager.Controls
             _searchPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 28,
-                BackColor = Color.FromArgb(35, 35, 35),
-                Padding = new Padding(3, 3, 3, 3)
+                Height = 30,
+                BackColor = Color.FromArgb(30, 30, 30),
+                Padding = new Padding(6, 5, 6, 5)
+            };
+
+            // Borda sutil ao redor do TextBox
+            var searchBorder = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(60, 60, 60),
+                Padding = new Padding(1)
             };
 
             _searchBox = new TextBox
             {
-                Text = "procurar...",
-                Font = new Font("Segoe UI", 8F),
-                ForeColor = Color.Gray,
-                BackColor = Color.FromArgb(50, 50, 50),
+                Font = F8_5,
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(45, 45, 45),
                 BorderStyle = BorderStyle.None,
                 Dock = DockStyle.Fill
             };
-            _searchBox.Enter += SearchBox_Enter;
             _searchBox.Leave += SearchBox_Leave;
             _searchBox.TextChanged += SearchBox_TextChanged;
             _searchBox.KeyDown += SearchBox_KeyDown;
 
-            _searchPanel.Controls.Add(_searchBox);
+            // Placeholder nativo do Windows (desaparece ao focar)
+            _searchBox.HandleCreated += (s, ev) =>
+            {
+                SendMessage(_searchBox.Handle, EM_SETCUEBANNER, (IntPtr)1, "procurar...");
+            };
+
+            searchBorder.Controls.Add(_searchBox);
+            _searchPanel.Controls.Add(searchBorder);
 
             // Content Panel
             _contentPanel = new FlowLayoutPanel
@@ -344,12 +400,14 @@ namespace RBX_Alt_Manager.Controls
             // Resetar modo contas vazias
             _emptyAccountsMode = false;
             _emptyAccountsSelectedGame = null;
+            _cachedEmptyAccounts = null;
             
-            // Limpar busca ao voltar para jogos
-            _searchBox.Text = "procurar...";
-            _searchBox.ForeColor = Color.Gray;
+            // Limpar busca ao voltar para jogos (sem disparar TextChanged → ApplyFilter)
+            _suppressSearchFilter = true;
+            _searchBox.Text = "";
             _searchText = "";
-            
+            _suppressSearchFilter = false;
+
             // Limpar estados de expansão
             _expandedItems.Clear();
 
@@ -384,7 +442,7 @@ namespace RBX_Alt_Manager.Controls
             var nameLabel = new Label
             {
                 Text = game.Name.ToUpper(),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = F9B,
                 ForeColor = Color.LimeGreen,
                 Location = new Point(8, 7),
                 Size = new Size(width - 40, 20),
@@ -396,7 +454,7 @@ namespace RBX_Alt_Manager.Controls
             var favoriteBtn = new Label
             {
                 Text = isFavorite ? "★" : "☆",
-                Font = new Font("Segoe UI", 12F),
+                Font = F12,
                 ForeColor = isFavorite ? Color.Gold : Color.Gray,
                 Location = new Point(width - 30, 4),
                 Size = new Size(25, 25),
@@ -413,7 +471,7 @@ namespace RBX_Alt_Manager.Controls
             contextMenu.ForeColor = Color.White;
             contextMenu.Renderer = new DarkMenuRenderer();
 
-            var editGameItem = new ToolStripMenuItem("✏️ Editar Nome");
+            var editGameItem = new ToolStripMenuItem("✏️ Editar Jogo");
             editGameItem.Click += (s, e) => ShowEditGameDialog(game);
 
             var archiveGameItem = new ToolStripMenuItem("📁 Arquivar Jogo");
@@ -438,6 +496,7 @@ namespace RBX_Alt_Manager.Controls
 
         private async Task LoadGameItemsAsync(SupabaseGame game)
         {
+            LogDebug($"[DEBUG] LoadGameItemsAsync CHAMADO para '{game?.Name}' (stack: {new System.Diagnostics.StackTrace(1, false).GetFrame(0)?.GetMethod()?.Name ?? "?"})");
             _selectedGame = game;
             _backButton.Visible = true;
             _titleLabel.Text = game.Name.ToUpper();
@@ -446,8 +505,7 @@ namespace RBX_Alt_Manager.Controls
             _addButton.Visible = true;
             
             // Limpar busca ao entrar em um jogo
-            _searchBox.Text = "procurar...";
-            _searchBox.ForeColor = Color.Gray;
+            _searchBox.Text = "";
             _searchText = "";
 
             _contentPanel.SuspendLayout();
@@ -461,7 +519,7 @@ namespace RBX_Alt_Manager.Controls
                 var loadingLabel = new Label
                 {
                     Text = "Carregando...",
-                    Font = new Font("Segoe UI", 9F),
+                    Font = F9,
                     ForeColor = Color.Gray,
                     AutoSize = true,
                     Padding = new Padding(10)
@@ -486,7 +544,7 @@ namespace RBX_Alt_Manager.Controls
                     var emptyLabel = new Label
                     {
                         Text = "Nenhum item cadastrado.\nClique em '+ Item' para adicionar.",
-                        Font = new Font("Segoe UI", 8F),
+                        Font = F8,
                         ForeColor = Color.Gray,
                         AutoSize = true,
                         Padding = new Padding(10)
@@ -521,13 +579,36 @@ namespace RBX_Alt_Manager.Controls
             }
         }
 
+        private int _refreshCount = 0;
+
         private void RefreshItemsPanel()
         {
             // Guarda de re-entrância: ctrl.Dispose() pode bombar mensagens do Windows
             // que re-entram neste método. Sem esta guarda, o painel pode ficar invisível.
-            if (_isRefreshingItems) return;
+            if (_isRefreshingItems)
+            {
+                LogDebugWarning($"[DEBUG] RefreshItemsPanel BLOQUEADO por _isRefreshingItems=true");
+                return;
+            }
             _isRefreshingItems = true;
-            
+            _refreshCount++;
+            int thisRefresh = _refreshCount;
+
+            // Stack trace para identificar quem está chamando
+            var st = new System.Diagnostics.StackTrace(1, false);
+            var callers = new System.Text.StringBuilder();
+            for (int i = 0; i < Math.Min(st.FrameCount, 5); i++)
+            {
+                var frame = st.GetFrame(i);
+                var method = frame?.GetMethod();
+                if (method != null)
+                {
+                    if (callers.Length > 0) callers.Append(" → ");
+                    callers.Append($"{method.DeclaringType?.Name}.{method.Name}");
+                }
+            }
+            LogDebug($"[DEBUG] RefreshItemsPanel #{thisRefresh} INICIADO. Controls antigos: {_contentPanel.Controls.Count}. CALLER: {callers}");
+
             _contentPanel.SuspendLayout();
             _contentPanel.Visible = false;
             
@@ -614,6 +695,7 @@ namespace RBX_Alt_Manager.Controls
 
                 // Adicionar todos os controles de uma vez (mais eficiente)
                 _contentPanel.Controls.AddRange(controlsToAdd.ToArray());
+                LogDebug($"[DEBUG] RefreshItemsPanel #{thisRefresh} recriou {controlsToAdd.Count} controles");
             }
             finally
             {
@@ -622,6 +704,7 @@ namespace RBX_Alt_Manager.Controls
                 _contentPanel.Visible = true;
                 _contentPanel.ResumeLayout(true);
                 _isRefreshingItems = false;
+                LogDebug($"[DEBUG] RefreshItemsPanel #{thisRefresh} CONCLUÍDO. Controls finais: {_contentPanel.Controls.Count}, Visible={_contentPanel.Visible}");
             }
         }
 
@@ -647,7 +730,7 @@ namespace RBX_Alt_Manager.Controls
             var arrowLabel = new Label
             {
                 Text = isExpanded ? "▼" : "▶",
-                Font = new Font("Segoe UI", 7F),
+                Font = F7,
                 ForeColor = arrowColor,
                 Location = new Point(5, 7),
                 Size = new Size(15, 14),
@@ -658,7 +741,7 @@ namespace RBX_Alt_Manager.Controls
             var nameLabel = new Label
             {
                 Text = item.Name,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Font = F8B,
                 ForeColor = itemColor,
                 Location = new Point(22, 6),
                 Size = new Size(width - 115, 16), // Reduzido para dar mais espaço ao número
@@ -671,7 +754,7 @@ namespace RBX_Alt_Manager.Controls
             var infoLabel = new Label
             {
                 Text = $"({formattedTotal})",
-                Font = new Font("Segoe UI", 7F),
+                Font = F7,
                 ForeColor = hasZeroStock ? Color.FromArgb(200, 80, 80) : Color.Gray,
                 Location = new Point(width - 110, 7),
                 Size = new Size(80, 14), // Aumentado para números grandes
@@ -682,19 +765,74 @@ namespace RBX_Alt_Manager.Controls
             var addBtn = new SafeButton
             {
                 Text = "+",
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Font = F8B,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(0, 100, 0),
                 FlatStyle = FlatStyle.Flat,
                 Size = new Size(20, 20),
                 Location = new Point(width - 25, 4),
-                Tag = item.Id, // Guardar apenas o ID, não o objeto
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                DebugName = $"+_item{item.Id}"
             };
             addBtn.FlatAppearance.BorderSize = 0;
-            
-            // Click = mostrar menu dinâmico
-            addBtn.Click += AddAccountButton_ShowMenu;
+
+            // Menu do botão "+" (criado junto com o botão para garantir ciclo de vida correto)
+            var addAccountMenu = new ContextMenuStrip();
+            addAccountMenu.BackColor = Color.FromArgb(45, 45, 45);
+            addAccountMenu.ForeColor = Color.White;
+            addAccountMenu.Renderer = new DarkMenuRenderer();
+
+            var autoItem = new ToolStripMenuItem("🔄 Adicionar Automático");
+            autoItem.Click += (s, ev) =>
+            {
+                LogDebug($"[DEBUG] Menu 'Adicionar Automático' clicado para item '{item.Name}' (id={item.Id})");
+                _ = AddNextAvailableAccountToItemAsync(item);
+            };
+
+            var manualItem = new ToolStripMenuItem("✏️ Adicionar Manual");
+            manualItem.Click += (s, ev) => AddAccountManual(item);
+
+            addAccountMenu.Items.Add(autoItem);
+            addAccountMenu.Items.Add(manualItem);
+
+            addAccountMenu.Opening += (s, ev) =>
+            {
+                LogDebug($"[DEBUG] Menu Opening para item '{item.Name}' (id={item.Id})");
+            };
+            addAccountMenu.Closed += (s, ev) =>
+            {
+                LogDebug($"[DEBUG] Menu Closed para item '{item.Name}' (id={item.Id}), reason={ev.CloseReason}");
+            };
+
+            // Click esquerdo = mostrar o menu
+            addBtn.Click += (s, ev) =>
+            {
+                LogDebug($"[DEBUG] Botão '+' CLICK fired! item='{item.Name}' (id={item.Id}), btn.IsDisposed={addBtn.IsDisposed}, menu.IsDisposed={addAccountMenu.IsDisposed}, _isAddingAccount={_isAddingAccount}");
+                try
+                {
+                    if (addBtn.IsDisposed)
+                    {
+                        LogDebugWarning($"[DEBUG] Botão descartado! Abortando.");
+                        return;
+                    }
+                    if (addAccountMenu.IsDisposed)
+                    {
+                        LogDebugWarning($"[DEBUG] Menu descartado! Abortando.");
+                        return;
+                    }
+                    LogDebug($"[DEBUG] Chamando addAccountMenu.Show(addBtn)...");
+                    addAccountMenu.Show(addBtn, new Point(0, addBtn.Height));
+                    LogDebug($"[DEBUG] addAccountMenu.Show() retornou. Visible={addAccountMenu.Visible}");
+                }
+                catch (ObjectDisposedException odex)
+                {
+                    LogDebugWarning($"[DEBUG] ObjectDisposedException no Show: {odex.ObjectName}");
+                }
+                catch (Exception ex)
+                {
+                    OnLogError($"[DEBUG] Exceção no Show: {ex.GetType().Name}: {ex.Message}");
+                }
+            };
 
             // Menu de contexto para o item (editar/arquivar)
             var itemContextMenu = new ContextMenuStrip();
@@ -830,7 +968,7 @@ namespace RBX_Alt_Manager.Controls
             var usernameLabel = new Label
             {
                 Text = inventory.Username,
-                Font = new Font("Segoe UI", 8F),
+                Font = F8,
                 ForeColor = Color.LimeGreen,
                 Location = new Point(5, 4),
                 Size = new Size(width - 130, 16), // Reduzido para dar mais espaço ao número
@@ -839,16 +977,16 @@ namespace RBX_Alt_Manager.Controls
             };
             usernameLabel.Click += (s, e) => OnAccountSelected(inventory.Username);
 
-            // Quantidade (alinhada à direita, apenas visualização)
-            // Aumentado para caber números grandes como 490.000.000
+            // Quantidade (somente leitura)
             var qtyLabel = new Label
             {
                 Text = inventory.Quantity.ToString("N0", new System.Globalization.CultureInfo("pt-BR")),
                 Name = $"invqty_{inventory.Id}",
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Font = F7_5B,
                 ForeColor = Color.White,
+                BackColor = Color.FromArgb(35, 35, 35),
                 Location = new Point(width - 115, 4),
-                Size = new Size(80, 16), // Aumentado de 50 para 80
+                Size = new Size(75, 16),
                 TextAlign = ContentAlignment.MiddleRight
             };
 
@@ -856,14 +994,16 @@ namespace RBX_Alt_Manager.Controls
             var removeBtn = new SafeButton
             {
                 Text = "×",
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = F9B,
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(120, 40, 40),
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(20, 18),
-                Location = new Point(width - 32, 3),
+                Size = new Size(20, 20),
+                Location = new Point(width - 32, 2),
                 Tag = inventory,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Padding = new Padding(0, 0, 0, 1)
             };
             removeBtn.FlatAppearance.BorderSize = 0;
             removeBtn.Click += RemoveAccountButton_Click;
@@ -896,6 +1036,7 @@ namespace RBX_Alt_Manager.Controls
             return panel;
         }
 
+
         #region Event Handlers
 
         private void BackButton_Click(object sender, EventArgs e)
@@ -906,6 +1047,7 @@ namespace RBX_Alt_Manager.Controls
                 {
                     // Voltar para lista de jogos no modo contas vazias
                     _emptyAccountsSelectedGame = null;
+                    _cachedEmptyAccounts = null;
                     _titleLabel.Text = "CONTAS VAZIAS";
                     RefreshEmptyAccountsGamesPanel();
                 }
@@ -1006,13 +1148,24 @@ namespace RBX_Alt_Manager.Controls
             }
         }
 
+        private bool _isAddingAccount = false;
+
         private async Task AddNextAvailableAccountToItemAsync(SupabaseGameItem item)
         {
+            LogDebug($"[DEBUG] AddNextAvailable CHAMADO para '{item.Name}' (id={item.Id}), _isAddingAccount={_isAddingAccount}");
+            if (_isAddingAccount)
+            {
+                LogDebugWarning($"[DEBUG] AddNextAvailable BLOQUEADO! _isAddingAccount=true");
+                return;
+            }
+            _isAddingAccount = true;
+            LogDebug($"[DEBUG] AddNextAvailable _isAddingAccount=true, iniciando busca...");
+
             try
             {
-                // Buscar todas as contas do Supabase
-                var allAccounts = await SupabaseManager.Instance.GetAccountsAsync() ?? new List<SupabaseAccount>();
-                
+                // Buscar todas as contas do Supabase (excluir arquivadas)
+                var allAccounts = await SupabaseManager.Instance.GetAccountsAsync(false) ?? new List<SupabaseAccount>();
+
                 if (allAccounts.Count == 0)
                 {
                     OnLogWarning("⚠️ Nenhuma conta cadastrada no Supabase");
@@ -1020,26 +1173,31 @@ namespace RBX_Alt_Manager.Controls
                     return;
                 }
 
-                // Pegar usernames já adicionados a ESTE item
-                var existingInThisItem = _inventoryByItem.ContainsKey(item.Id) 
-                    ? _inventoryByItem[item.Id].Select(i => i.Username.ToLower()).ToHashSet() 
+                // Pegar usernames já adicionados a ESTE item (snapshot para evitar modificação concurrent)
+                var existingInThisItem = _inventoryByItem.ContainsKey(item.Id)
+                    ? _inventoryByItem[item.Id].ToList().Select(i => i.Username.ToLower()).ToHashSet()
                     : new HashSet<string>();
 
                 // Primeiro: tentar encontrar uma conta que NÃO está em nenhum item deste jogo
                 var usernamesInAnyItemOfThisGame = new HashSet<string>();
-                foreach (var gameItem in _gameItems)
+                foreach (var gameItem in _gameItems.ToList())
                 {
                     if (_inventoryByItem.ContainsKey(gameItem.Id))
                     {
-                        foreach (var inv in _inventoryByItem[gameItem.Id])
+                        foreach (var inv in _inventoryByItem[gameItem.Id].ToList())
                         {
-                            usernamesInAnyItemOfThisGame.Add(inv.Username.ToLower());
+                            if (!string.IsNullOrEmpty(inv.Username))
+                                usernamesInAnyItemOfThisGame.Add(inv.Username.ToLower());
                         }
                     }
                 }
 
-                var completelyFreeAccount = allAccounts.FirstOrDefault(a => 
-                    !usernamesInAnyItemOfThisGame.Contains(a.Username.ToLower()));
+                var completelyFreeAccounts = allAccounts
+                    .Where(a => !string.IsNullOrEmpty(a.Username) && !usernamesInAnyItemOfThisGame.Contains(a.Username.ToLower()))
+                    .ToList();
+                var completelyFreeAccount = completelyFreeAccounts.Count > 0
+                    ? completelyFreeAccounts[_rng.Next(completelyFreeAccounts.Count)]
+                    : null;
 
                 if (completelyFreeAccount != null)
                 {
@@ -1052,44 +1210,52 @@ namespace RBX_Alt_Manager.Controls
                 SupabaseInventoryEntry zeroStockEntry = null;
                 SupabaseGameItem sourceItem = null;
 
-                foreach (var gameItem in _gameItems)
+                // Coletar TODAS as entradas com estoque 0 de outros itens, depois escolher aleatoriamente
+                var allZeroEntries = new List<(SupabaseInventoryEntry entry, SupabaseGameItem source)>();
+                foreach (var gameItem in _gameItems.ToList())
                 {
-                    if (gameItem.Id == item.Id) continue; // Pular o item atual
-                    
+                    if (gameItem.Id == item.Id) continue;
+
                     if (_inventoryByItem.ContainsKey(gameItem.Id))
                     {
-                        var entryWithZero = _inventoryByItem[gameItem.Id]
-                            .FirstOrDefault(inv => inv.Quantity == 0 && !existingInThisItem.Contains(inv.Username.ToLower()));
-                        
-                        if (entryWithZero != null)
-                        {
-                            zeroStockEntry = entryWithZero;
-                            sourceItem = gameItem;
-                            break;
-                        }
+                        var zeroEntries = _inventoryByItem[gameItem.Id].ToList()
+                            .Where(inv => inv.Quantity == 0 && !string.IsNullOrEmpty(inv.Username) && !existingInThisItem.Contains(inv.Username.ToLower()));
+                        foreach (var entry in zeroEntries)
+                            allZeroEntries.Add((entry, gameItem));
                     }
+                }
+
+                if (allZeroEntries.Count > 0)
+                {
+                    var pick = allZeroEntries[_rng.Next(allZeroEntries.Count)];
+                    zeroStockEntry = pick.entry;
+                    sourceItem = pick.source;
                 }
 
                 if (zeroStockEntry != null && sourceItem != null)
                 {
                     // Encontrou conta com estoque 0 em outro item - mover
                     OnLogMessage($"🔄 Movendo '{zeroStockEntry.Username}' de '{sourceItem.Name}' para '{item.Name}'");
-                    
+
                     // Remover do item antigo
                     await SupabaseManager.Instance.DeleteInventoryAsync(zeroStockEntry.Id);
                     if (_inventoryByItem.ContainsKey(sourceItem.Id))
                     {
                         _inventoryByItem[sourceItem.Id].RemoveAll(i => i.Id == zeroStockEntry.Id);
                     }
-                    
+
                     // Adicionar ao novo item
                     await AddAccountToItemDirectAsync(item, zeroStockEntry.Username);
                     return;
                 }
 
                 // Terceiro: verificar se simplesmente não tem conta disponível
-                var availableAccount = allAccounts.FirstOrDefault(a => 
-                    !existingInThisItem.Contains(a.Username.ToLower()));
+                var availableAccounts = allAccounts
+                    .Where(a => !string.IsNullOrEmpty(a.Username) && !existingInThisItem.Contains(a.Username.ToLower()))
+                    .ToList();
+                var availableAccount = availableAccounts.Count > 0
+                    ? availableAccounts[_rng.Next(availableAccounts.Count)]
+                    : null;
 
                 if (availableAccount == null)
                 {
@@ -1112,65 +1278,46 @@ namespace RBX_Alt_Manager.Controls
             }
             catch (Exception ex)
             {
-                OnLogError($"Erro: {ex.Message}");
+                OnLogError($"Erro ao adicionar conta: {ex.Message}");
+                MessageBox.Show($"Erro ao adicionar conta:\n{ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _isAddingAccount = false;
+                LogDebug($"[DEBUG] AddNextAvailable FINALLY: _isAddingAccount=false");
             }
         }
 
         private async Task AddAccountToItemDirectAsync(SupabaseGameItem item, string username)
         {
+            LogDebug($"[DEBUG] AddAccountDirect INICIADO: username='{username}', item='{item.Name}' (id={item.Id})");
+
+            // Ativar cooldown ANTES do upsert para bloquear reações do Pusher/Realtime
+            _lastUserActionTime = DateTime.UtcNow;
+
             bool success = await SupabaseManager.Instance.UpsertInventoryAsync(username, item.Id, 0);
+            LogDebug($"[DEBUG] AddAccountDirect UpsertInventory retornou success={success}");
             if (success)
             {
                 OnLogMessage($"✅ '{username}' adicionada a '{item.Name}'");
-                
+
                 // Recarregar inventário do item
+                LogDebug($"[DEBUG] AddAccountDirect chamando GetInventoryByItemAsync...");
                 var inventory = await SupabaseManager.Instance.GetInventoryByItemAsync(item.Id);
+                LogDebug($"[DEBUG] AddAccountDirect inventário retornado: {inventory?.Count ?? -1} registros");
                 _inventoryByItem[item.Id] = inventory ?? new List<SupabaseInventoryEntry>();
                 _expandedItems[item.Id] = true; // Expandir para mostrar
-                
+
+                // Renovar cooldown antes do refresh
+                _lastUserActionTime = DateTime.UtcNow;
+
+                LogDebug($"[DEBUG] AddAccountDirect chamando RefreshItemsPanel...");
                 RefreshItemsPanel();
+                LogDebug($"[DEBUG] AddAccountDirect CONCLUÍDO");
             }
             else
             {
                 OnLogError("Erro ao adicionar conta");
-            }
-        }
-
-        private void AddAccountButton_ShowMenu(object sender, EventArgs e)
-        {
-            try
-            {
-                var btn = sender as Button;
-                if (btn == null || btn.IsDisposed) return;
-                
-                // Obter o ID do item do Tag
-                if (!(btn.Tag is int itemId)) return;
-                
-                // Buscar o item atual na lista
-                var item = _gameItems?.FirstOrDefault(i => i.Id == itemId);
-                if (item == null) return;
-                
-                // Criar menu dinâmico (não fica preso a objetos antigos)
-                var contextMenu = new ContextMenuStrip();
-                contextMenu.BackColor = Color.FromArgb(45, 45, 45);
-                contextMenu.ForeColor = Color.White;
-                contextMenu.Renderer = new DarkMenuRenderer();
-                
-                var autoItem = new ToolStripMenuItem("🔄 Adicionar Automático");
-                autoItem.Click += (s, ev) => _ = AddNextAvailableAccountToItemAsync(item);
-                
-                var manualItem = new ToolStripMenuItem("✏️ Adicionar Manual");
-                manualItem.Click += (s, ev) => AddAccountManual(item);
-                
-                contextMenu.Items.Add(autoItem);
-                contextMenu.Items.Add(manualItem);
-                
-                contextMenu.Show(btn, new Point(0, btn.Height));
-            }
-            catch (ObjectDisposedException) { }
-            catch (Exception ex)
-            {
-                OnLogError($"Erro ao mostrar menu: {ex.Message}");
             }
         }
 
@@ -1220,17 +1367,19 @@ namespace RBX_Alt_Manager.Controls
                     return;
                 }
                 
+                _lastUserActionTime = DateTime.UtcNow;
                 bool success = await SupabaseManager.Instance.DeleteInventoryAsync(inventory.Id);
                 if (success)
                 {
                     OnLogMessage($"✅ Conta removida");
-                    
+
                     // Atualizar lista local
                     if (_inventoryByItem.ContainsKey(inventory.ItemId))
                     {
                         _inventoryByItem[inventory.ItemId].RemoveAll(i => i.Id == inventory.Id);
                     }
-                    
+
+                    _lastUserActionTime = DateTime.UtcNow;
                     RefreshItemsPanel();
                 }
             }
@@ -1274,6 +1423,19 @@ namespace RBX_Alt_Manager.Controls
         protected virtual void OnLogError(string message) => LogError?.Invoke(this, message);
         protected virtual void OnAccountSelected(string username) => AccountSelected?.Invoke(this, username);
 
+        /// <summary>Log apenas quando Debug Mode está ativo nas configurações.</summary>
+        private void LogDebug(string message)
+        {
+            if (AccountManager.DebugModeAtivo)
+                OnLogMessage(message);
+        }
+
+        private void LogDebugWarning(string message)
+        {
+            if (AccountManager.DebugModeAtivo)
+                OnLogWarning(message);
+        }
+
         #endregion
 
         #region Helper Methods
@@ -1299,7 +1461,7 @@ namespace RBX_Alt_Manager.Controls
                     Location = new Point(10, 15),
                     Size = new Size(310, 20),
                     ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 9F)
+                    Font = F9
                 };
 
                 TextBox inputTextBox = new TextBox
@@ -1307,7 +1469,7 @@ namespace RBX_Alt_Manager.Controls
                     Text = defaultValue,
                     Location = new Point(10, 40),
                     Size = new Size(310, 25),
-                    Font = new Font("Segoe UI", 9F),
+                    Font = F9,
                     BackColor = Color.FromArgb(60, 60, 60),
                     ForeColor = Color.White,
                     BorderStyle = BorderStyle.FixedSingle
@@ -1322,7 +1484,7 @@ namespace RBX_Alt_Manager.Controls
                     FlatStyle = FlatStyle.Flat,
                     BackColor = Color.FromArgb(0, 120, 0),
                     ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 9F)
+                    Font = F9
                 };
                 okButton.FlatAppearance.BorderSize = 0;
 
@@ -1335,7 +1497,7 @@ namespace RBX_Alt_Manager.Controls
                     FlatStyle = FlatStyle.Flat,
                     BackColor = Color.FromArgb(80, 80, 80),
                     ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 9F)
+                    Font = F9
                 };
                 cancelButton.FlatAppearance.BorderSize = 0;
 
@@ -1355,24 +1517,12 @@ namespace RBX_Alt_Manager.Controls
 
         #region Search and Favorites
 
-        private void SearchBox_Enter(object sender, EventArgs e)
-        {
-            if (_searchBox.Text == "procurar...")
-            {
-                _searchBox.Text = "";
-                _searchBox.ForeColor = Color.White;
-            }
-        }
-
         private void SearchBox_Leave(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(_searchBox.Text))
+            // Quando sai do campo vazio e havia busca ativa, resetar filtro
+            if (string.IsNullOrWhiteSpace(_searchBox.Text) && !string.IsNullOrEmpty(_searchText))
             {
-                _searchBox.Text = "procurar...";
-                _searchBox.ForeColor = Color.Gray;
                 _searchText = "";
-                
-                // Limpar estados de expansão ao limpar busca
                 _expandedItems.Clear();
                 ApplyFilter();
             }
@@ -1380,11 +1530,22 @@ namespace RBX_Alt_Manager.Controls
 
         private void SearchBox_TextChanged(object sender, EventArgs e)
         {
-            if (_searchBox.Text != "procurar...")
+            if (_suppressSearchFilter) return;
+
+            _searchText = _searchBox.Text.ToLower().Trim();
+
+            // Debounce: esperar 300ms antes de filtrar (evita rebuild por tecla)
+            if (_searchDebounceTimer == null)
             {
-                _searchText = _searchBox.Text.ToLower().Trim();
-                ApplyFilter();
+                _searchDebounceTimer = new System.Windows.Forms.Timer { Interval = 300 };
+                _searchDebounceTimer.Tick += (s, ev) =>
+                {
+                    _searchDebounceTimer.Stop();
+                    ApplyFilter();
+                };
             }
+            _searchDebounceTimer.Stop();
+            _searchDebounceTimer.Start();
         }
 
         private void SearchBox_KeyDown(object sender, KeyEventArgs e)
@@ -1393,13 +1554,9 @@ namespace RBX_Alt_Manager.Controls
             {
                 _searchBox.Text = "";
                 _searchText = "";
-                _searchBox.Text = "procurar...";
-                _searchBox.ForeColor = Color.Gray;
-                
-                // Limpar estados de expansão ao limpar busca
                 _expandedItems.Clear();
-                
                 ApplyFilter();
+                _contentPanel.Focus();
             }
         }
 
@@ -1409,8 +1566,8 @@ namespace RBX_Alt_Manager.Controls
             {
                 if (_emptyAccountsSelectedGame != null)
                 {
-                    // Filtrando contas vazias de um jogo
-                    _ = LoadEmptyAccountsForGameAsync(_emptyAccountsSelectedGame);
+                    // Filtrar contas vazias do cache local (sem API call)
+                    RefreshCachedEmptyAccountsPanel();
                 }
                 else
                 {
@@ -1449,7 +1606,7 @@ namespace RBX_Alt_Manager.Controls
                     var emptyLabel = new Label
                     {
                         Text = "Nenhum jogo cadastrado.\nClique em '+ Jogo' para adicionar.",
-                        Font = new Font("Segoe UI", 8F),
+                        Font = F8,
                         ForeColor = Color.Gray,
                         AutoSize = true,
                         Padding = new Padding(10)
@@ -1560,7 +1717,7 @@ namespace RBX_Alt_Manager.Controls
             var nameLabel = new Label
             {
                 Text = "CONTAS VAZIAS",
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = F9B,
                 ForeColor = Color.White,
                 Location = new Point(8, 7),
                 Size = new Size(width - 20, 20),
@@ -1596,7 +1753,7 @@ namespace RBX_Alt_Manager.Controls
             var nameLabel = new Label
             {
                 Text = "CONTAS VAZIAS",
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = F9B,
                 ForeColor = Color.FromArgb(205, 133, 63), // Laranja/marrom (Peru color)
                 Location = new Point(8, 7),
                 Size = new Size(width - 40, 20),
@@ -1608,7 +1765,7 @@ namespace RBX_Alt_Manager.Controls
             var placeholderStar = new Label
             {
                 Text = "☆",
-                Font = new Font("Segoe UI", 12F),
+                Font = F12,
                 ForeColor = Color.FromArgb(60, 60, 60), // Quase invisível
                 Location = new Point(width - 30, 4),
                 Size = new Size(25, 25)
@@ -1635,10 +1792,9 @@ namespace RBX_Alt_Manager.Controls
             _titleLabel.Text = "CONTAS VAZIAS";
             _titleLabel.Location = new Point(60, 8);
             _addButton.Visible = false;
-            
+
             // Limpar busca
-            _searchBox.Text = "procurar...";
-            _searchBox.ForeColor = Color.Gray;
+            _searchBox.Text = "";
             _searchText = "";
 
             _contentPanel.SuspendLayout();
@@ -1651,7 +1807,7 @@ namespace RBX_Alt_Manager.Controls
                 var loadingLabel = new Label
                 {
                     Text = "Carregando...",
-                    Font = new Font("Segoe UI", 9F),
+                    Font = F9,
                     ForeColor = Color.Gray,
                     AutoSize = true,
                     Padding = new Padding(10)
@@ -1738,7 +1894,7 @@ namespace RBX_Alt_Manager.Controls
             var nameLabel = new Label
             {
                 Text = game.Name.ToUpper(),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = F9B,
                 ForeColor = Color.Orange,
                 Location = new Point(8, 7),
                 Size = new Size(width - 20, 20),
@@ -1757,17 +1913,85 @@ namespace RBX_Alt_Manager.Controls
         }
 
         /// <summary>
+        /// Filtra e exibe contas vazias a partir do cache local (sem API call).
+        /// Chamado pelo ApplyFilter quando o usuário digita na busca.
+        /// </summary>
+        private void RefreshCachedEmptyAccountsPanel()
+        {
+            if (_cachedEmptyAccounts == null) return;
+
+            var filtered = _cachedEmptyAccounts.AsEnumerable();
+            if (!string.IsNullOrEmpty(_searchText))
+            {
+                filtered = filtered.Where(a => a.Username.ToLower().Contains(_searchText));
+            }
+            var list = filtered.ToList();
+
+            _contentPanel.SuspendLayout();
+            _contentPanel.Visible = false;
+
+            try
+            {
+                while (_contentPanel.Controls.Count > 0)
+                {
+                    var ctrl = _contentPanel.Controls[0];
+                    _contentPanel.Controls.RemoveAt(0);
+                    try { ctrl.Dispose(); } catch { }
+                }
+
+                if (list.Count == 0)
+                {
+                    var noLabel = new Label
+                    {
+                        Text = string.IsNullOrEmpty(_searchText)
+                            ? "Nenhuma conta vazia neste jogo.\nTodas as contas têm estoque."
+                            : "Nenhuma conta encontrada.",
+                        Font = F8,
+                        ForeColor = Color.Gray,
+                        AutoSize = true,
+                        Padding = new Padding(10)
+                    };
+                    _contentPanel.Controls.Add(noLabel);
+                }
+                else
+                {
+                    var headerLabel = new Label
+                    {
+                        Text = $"{list.Count} contas sem estoque",
+                        Font = F8,
+                        ForeColor = Color.Orange,
+                        AutoSize = true,
+                        Padding = new Padding(5, 3, 5, 3)
+                    };
+                    _contentPanel.Controls.Add(headerLabel);
+
+                    foreach (var account in list)
+                    {
+                        var accountPanel = CreateEmptyAccountPanel(account);
+                        _contentPanel.Controls.Add(accountPanel);
+                    }
+                }
+            }
+            finally
+            {
+                _contentPanel.Visible = true;
+                _contentPanel.ResumeLayout(true);
+            }
+        }
+
+        /// <summary>
         /// Carrega as contas vazias (sem estoque ou estoque zero) para um jogo específico
         /// </summary>
         private async Task LoadEmptyAccountsForGameAsync(SupabaseGame game)
         {
             _emptyAccountsSelectedGame = game;
             _titleLabel.Text = game.Name.ToUpper();
-            
-            // Limpar busca
-            _searchBox.Text = "procurar...";
-            _searchBox.ForeColor = Color.Gray;
+
+            // Limpar busca sem disparar TextChanged → ApplyFilter
+            _suppressSearchFilter = true;
+            _searchBox.Text = "";
             _searchText = "";
+            _suppressSearchFilter = false;
 
             _contentPanel.SuspendLayout();
             _contentPanel.Visible = false;
@@ -1779,7 +2003,7 @@ namespace RBX_Alt_Manager.Controls
                 var loadingLabel = new Label
                 {
                     Text = "Carregando...",
-                    Font = new Font("Segoe UI", 9F),
+                    Font = F9,
                     ForeColor = Color.Gray,
                     AutoSize = true,
                     Padding = new Padding(10)
@@ -1814,15 +2038,10 @@ namespace RBX_Alt_Manager.Controls
                     .OrderBy(a => a.Username)
                     .ToList();
 
-                OnLogMessage($"🔍 Debug: {emptyAccounts.Count} contas SEM estoque");
+                // Cachear para filtragem local (busca sem API call)
+                _cachedEmptyAccounts = emptyAccounts;
 
-                // Filtrar pela busca se houver
-                if (!string.IsNullOrEmpty(_searchText))
-                {
-                    emptyAccounts = emptyAccounts
-                        .Where(a => a.Username.ToLower().Contains(_searchText))
-                        .ToList();
-                }
+                OnLogMessage($"🔍 Debug: {emptyAccounts.Count} contas SEM estoque");
 
                 _contentPanel.SuspendLayout();
                 _contentPanel.Controls.Clear();
@@ -1832,7 +2051,7 @@ namespace RBX_Alt_Manager.Controls
                     var noAccountsLabel = new Label
                     {
                         Text = "Nenhuma conta vazia neste jogo.\nTodas as contas têm estoque.",
-                        Font = new Font("Segoe UI", 8F),
+                        Font = F8,
                         ForeColor = Color.Gray,
                         AutoSize = true,
                         Padding = new Padding(10)
@@ -1845,7 +2064,7 @@ namespace RBX_Alt_Manager.Controls
                     var headerLabel = new Label
                     {
                         Text = $"{emptyAccounts.Count} contas sem estoque",
-                        Font = new Font("Segoe UI", 8F),
+                        Font = F8,
                         ForeColor = Color.Orange,
                         AutoSize = true,
                         Padding = new Padding(5, 3, 5, 3)
@@ -1890,7 +2109,7 @@ namespace RBX_Alt_Manager.Controls
             var usernameLabel = new Label
             {
                 Text = account.Username,
-                Font = new Font("Segoe UI", 8F),
+                Font = F8,
                 ForeColor = Color.LightGray,
                 Location = new Point(8, 4),
                 Size = new Size(width - 20, 16),
@@ -1955,7 +2174,7 @@ namespace RBX_Alt_Manager.Controls
             var accountLabel = new Label
             {
                 Text = $"Conta: {account.Username}",
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = F9B,
                 ForeColor = Color.White,
                 Location = new Point(15, 15),
                 AutoSize = true
@@ -2263,7 +2482,7 @@ namespace RBX_Alt_Manager.Controls
             var accountLabel = new Label
             {
                 Text = $"Conta: {inventory.Username}",
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = F9B,
                 ForeColor = Color.White,
                 Location = new Point(15, 15),
                 AutoSize = true
@@ -2397,36 +2616,136 @@ namespace RBX_Alt_Manager.Controls
         #region Game/Item Edit/Archive
 
         /// <summary>
-        /// Mostra dialog para editar nome do jogo
+        /// Mostra dialog para editar jogo (nome + place_id)
         /// </summary>
         private void ShowEditGameDialog(SupabaseGame game)
         {
-            string newName = ShowInputDialog($"Novo nome para '{game.Name}':", "Editar Jogo", game.Name);
-            
-            if (!string.IsNullOrWhiteSpace(newName) && newName != game.Name)
+            using (Form editForm = new Form())
             {
-                _ = UpdateGameNameAsync(game, newName);
+                editForm.Text = "Editar Jogo";
+                editForm.Size = new Size(370, 220);
+                editForm.StartPosition = FormStartPosition.CenterParent;
+                editForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                editForm.MaximizeBox = false;
+                editForm.MinimizeBox = false;
+                editForm.BackColor = Color.FromArgb(45, 45, 45);
+
+                var nameLabel = new Label
+                {
+                    Text = "Nome do jogo:",
+                    Location = new Point(10, 15),
+                    Size = new Size(330, 18),
+                    ForeColor = Color.White,
+                    Font = F9
+                };
+
+                var nameBox = new TextBox
+                {
+                    Text = game.Name,
+                    Location = new Point(10, 36),
+                    Size = new Size(330, 25),
+                    Font = F9,
+                    BackColor = Color.FromArgb(60, 60, 60),
+                    ForeColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+
+                var placeLabel = new Label
+                {
+                    Text = "Place ID:",
+                    Location = new Point(10, 70),
+                    Size = new Size(330, 18),
+                    ForeColor = Color.White,
+                    Font = F9
+                };
+
+                var placeBox = new TextBox
+                {
+                    Text = game.PlaceId.HasValue && game.PlaceId.Value > 0 ? game.PlaceId.Value.ToString() : "",
+                    Location = new Point(10, 91),
+                    Size = new Size(330, 25),
+                    Font = F9,
+                    BackColor = Color.FromArgb(60, 60, 60),
+                    ForeColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+
+                var okBtn = new Button
+                {
+                    Text = "Salvar",
+                    Location = new Point(170, 135),
+                    Size = new Size(80, 30),
+                    DialogResult = DialogResult.OK,
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(0, 120, 0),
+                    ForeColor = Color.White,
+                    Font = F9
+                };
+                okBtn.FlatAppearance.BorderSize = 0;
+
+                var cancelBtn = new Button
+                {
+                    Text = "Cancelar",
+                    Location = new Point(260, 135),
+                    Size = new Size(80, 30),
+                    DialogResult = DialogResult.Cancel,
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(80, 80, 80),
+                    ForeColor = Color.White,
+                    Font = F9
+                };
+                cancelBtn.FlatAppearance.BorderSize = 0;
+
+                editForm.Controls.AddRange(new Control[] { nameLabel, nameBox, placeLabel, placeBox, okBtn, cancelBtn });
+                editForm.AcceptButton = okBtn;
+                editForm.CancelButton = cancelBtn;
+
+                if (editForm.ShowDialog() == DialogResult.OK)
+                {
+                    string newName = nameBox.Text.Trim();
+                    string placeText = placeBox.Text.Trim();
+                    long? placeId = null;
+
+                    if (!string.IsNullOrEmpty(placeText) && long.TryParse(placeText, out long parsedId) && parsedId > 0)
+                        placeId = parsedId;
+
+                    bool nameChanged = !string.IsNullOrWhiteSpace(newName) && newName != game.Name;
+                    bool placeChanged = placeId != game.PlaceId;
+
+                    if (nameChanged || placeChanged)
+                    {
+                        _ = UpdateGameDetailsAsync(game, string.IsNullOrWhiteSpace(newName) ? game.Name : newName, placeId);
+                    }
+                }
             }
         }
 
         /// <summary>
-        /// Atualiza o nome do jogo no Supabase
+        /// Atualiza nome e place_id do jogo no Supabase
         /// </summary>
-        private async Task UpdateGameNameAsync(SupabaseGame game, string newName)
+        private async Task UpdateGameDetailsAsync(SupabaseGame game, string newName, long? placeId)
         {
-            var success = await SupabaseManager.Instance.UpdateGameNameAsync(game.Id, newName);
-            
+            var success = await SupabaseManager.Instance.UpdateGameDetailsAsync(game.Id, newName, placeId);
+
             if (success)
             {
-                OnLogMessage($"✏️ Jogo renomeado: {game.Name} → {newName}");
+                string changes = "";
+                if (newName != game.Name) changes += $"nome: {game.Name} → {newName}";
+                if (placeId != game.PlaceId)
+                {
+                    if (changes.Length > 0) changes += ", ";
+                    changes += $"place_id: {game.PlaceId?.ToString() ?? "vazio"} → {placeId?.ToString() ?? "vazio"}";
+                }
+                OnLogMessage($"✏️ Jogo atualizado: {changes}");
                 game.Name = newName;
-                
+                game.PlaceId = placeId;
+
                 // Recarregar lista de jogos
                 await LoadGamesAsync();
             }
             else
             {
-                MessageBox.Show("Erro ao renomear jogo.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Erro ao atualizar jogo.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -2636,7 +2955,10 @@ namespace RBX_Alt_Manager.Controls
         private const int WM_MBUTTONDOWN = 0x0207;
         private const int WM_MBUTTONUP = 0x0208;
         private const int WM_MOUSEMOVE = 0x0200;
-        
+
+        /// <summary>Nome para debug (ex: "+_itemId").</summary>
+        public string DebugName { get; set; }
+
         protected override void WndProc(ref Message m)
         {
             // Se descartado, só ignorar mensagens de mouse (que causam o crash).
@@ -2648,6 +2970,9 @@ namespace RBX_Alt_Manager.Controls
                     case WM_LBUTTONDOWN:
                     case WM_LBUTTONUP:
                     case WM_LBUTTONDBLCLK:
+                        if (AccountManager.DebugModeAtivo)
+                            System.Diagnostics.Debug.WriteLine($"[SafeButton] DISPOSED click eaten! DebugName={DebugName}, Msg=0x{m.Msg:X4}, Handle=0x{m.HWnd:X}");
+                        return;
                     case WM_RBUTTONDOWN:
                     case WM_RBUTTONUP:
                     case WM_MBUTTONDOWN:
@@ -2656,7 +2981,13 @@ namespace RBX_Alt_Manager.Controls
                         return; // Ignorar silenciosamente
                 }
             }
-            
+
+            // Log de cliques em botões "+" para debug
+            if (m.Msg == WM_LBUTTONDOWN && !string.IsNullOrEmpty(DebugName) && AccountManager.DebugModeAtivo)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SafeButton] WM_LBUTTONDOWN DebugName={DebugName}, IsDisposed={IsDisposed}, Visible={Visible}, Enabled={Enabled}, Handle=0x{Handle:X}");
+            }
+
             try
             {
                 base.WndProc(ref m);

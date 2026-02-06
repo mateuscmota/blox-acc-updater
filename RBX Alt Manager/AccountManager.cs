@@ -1,4 +1,4 @@
-﻿using BrightIdeasSoftware;
+using BrightIdeasSoftware;
 using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Win32;
 using Microsoft.WindowsAPICodePack.Dialogs;
@@ -28,7 +28,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using WebSocketSharp;
 
 #pragma warning disable CS0618 // parameter warnings
 
@@ -46,6 +45,7 @@ namespace RBX_Alt_Manager
         public static RestClient AvatarClient;
         public static RestClient FriendsClient;
         public static RestClient UsersClient;
+        public static RestClient PresenceClient;
         public static RestClient AuthClient;
         public static RestClient EconClient;
         public static RestClient AccountClient;
@@ -68,25 +68,11 @@ namespace RBX_Alt_Manager
         public static bool IsTeleport = false;
         public static bool UseOldJoin = false;
         public static bool ShuffleJobID = false;
-        public static bool ModoEstoqueAtivo = false;
+        public static bool DebugModeAtivo = false;
         private static bool PuppeteerSupported;
-
-        // Google Sheets Integration (legacy)
-        // Configurações carregadas de games_config.json
-        private Classes.GoogleSheetsIntegration _sheetsIntegration;
-        private string SHEETS_ID => Classes.GamesConfig.Instance.SpreadsheetId;
-        private string APPS_SCRIPT_URL => Classes.GamesConfig.Instance.AppsScriptUrl;
 
         // Painel de Inventário (Supabase)
         private Controls.InventoryPanelControl _inventoryPanel;
-
-        // Pusher Integration (tempo real)
-        private string PUSHER_APP_ID => Classes.GamesConfig.Instance.Pusher?.AppId ?? "";
-        private string PUSHER_KEY => Classes.GamesConfig.Instance.Pusher?.Key ?? "";
-        private string PUSHER_SECRET => Classes.GamesConfig.Instance.Pusher?.Secret ?? "";
-        private string PUSHER_CLUSTER => Classes.GamesConfig.Instance.Pusher?.Cluster ?? "sa1";
-        private WebSocket _pusherSocket;
-        private bool _pusherConnected = false;
 
         // Contador de requisições da sessão
         private static int _requestCount = 0;
@@ -181,15 +167,6 @@ namespace RBX_Alt_Manager
         /// Formata um número com separador de milhares (ponto)
         /// Ex: 900000000 -> 900.000.000
         /// </summary>
-        private static string FormatNumberWithThousands(int number)
-        {
-            return number.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
-        }
-
-        /// <summary>
-        /// Formata um número com separador de milhares (ponto)
-        /// Ex: 900000000 -> 900.000.000
-        /// </summary>
         private static string FormatNumberWithThousands(long number)
         {
             return number.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
@@ -270,7 +247,7 @@ namespace RBX_Alt_Manager
             if (!General.Exists("UnlockFPS")) General.Set("UnlockFPS", "false");
             if (!General.Exists("MaxFPSValue")) General.Set("MaxFPSValue", "120");
             if (!General.Exists("UseCefSharpBrowser")) General.Set("UseCefSharpBrowser", "false");
-            if (!General.Exists("UseInstalledChrome")) General.Set("UseInstalledChrome", "false");
+
             if (!General.Exists("EnableMultiRbx")) General.Set("EnableMultiRbx", "true");
 
             if (!Developer.Exists("DevMode")) Developer.Set("DevMode", "true");
@@ -1061,7 +1038,7 @@ namespace RBX_Alt_Manager
                     EnteredPassword = true;
                 }
                 else
-                    try { AccountsList = JsonConvert.DeserializeObject<List<Account>>(Encoding.UTF8.GetString(ProtectedData.Unprotect(Data, Entropy, DataProtectionScope.CurrentUser))); }
+                    try { AccountsList = JsonConvert.DeserializeObject<List<Account>>(Encoding.UTF8.GetString(ProtectedData.Unprotect(Data, Entropy, DataProtectionScope.LocalMachine))); }
                     catch (CryptographicException e)
                     {
                         try { AccountsList = JsonConvert.DeserializeObject<List<Account>>(Encoding.UTF8.GetString(Data)); }
@@ -1123,7 +1100,7 @@ namespace RBX_Alt_Manager
                 {
                     if (account.LastUse > LastValidAccount.LastUse)
                         LastValidAccount = account;
-                    
+
                     // Registrar hotkey salva da conta
                     if (!string.IsNullOrEmpty(account.SavedHotkey) && account.SavedHotkey != "Desativado")
                     {
@@ -1440,6 +1417,7 @@ namespace RBX_Alt_Manager
             GameJoinClient = new RestClient(new RestClientOptions("https://gamejoin.roblox.com/") { UserAgent = "Roblox/WinInet" });
             UsersClient = new RestClient("https://users.roblox.com");
             FriendsClient = new RestClient("https://friends.roblox.com");
+            PresenceClient = new RestClient("https://presence.roblox.com");
             Web13Client = new RestClient("https://web.roblox.com/");
             ApisClient = new RestClient("https://apis.roblox.com/");
 
@@ -1476,21 +1454,6 @@ namespace RBX_Alt_Manager
 
             // Verificar atualizações do Blox Brasil
             CheckBloxBrasilUpdate();
-
-            // Inicializar conexão Pusher para atualizações em tempo real
-            InitializePusher();
-
-            // Pré-carregar dados do Google Sheets em background (otimização)
-            Task.Run(async () =>
-            {
-                try
-                {
-                    if (_sheetsIntegration == null)
-                        _sheetsIntegration = new Classes.GoogleSheetsIntegration(SHEETS_ID);
-                    await _sheetsIntegration.PreloadAllGamesAsync();
-                }
-                catch { }
-            });
 
             // Inicializar painel de inventário (Supabase)
             InitializeInventoryPanel();
@@ -2060,39 +2023,42 @@ namespace RBX_Alt_Manager
 
         private async void DeleteFriendsButton_Click(object sender, EventArgs e)
         {
-            if (SelectedAccount == null)
+            var selectedAccounts = AccountsView.SelectedObjects.Cast<Account>().ToList();
+
+            if (selectedAccounts.Count == 0)
             {
                 MessageBox.Show("Selecione uma conta primeiro!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            DialogResult confirm = MessageBox.Show(
-                $"Tem certeza que deseja REMOVER TODAS AS AMIZADES da conta '{SelectedAccount.Username}'?\n\nEssa ação não pode ser desfeita!",
-                "Confirmar Remoção de Amizades",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning
-            );
+            string msg = selectedAccounts.Count == 1
+                ? $"Tem certeza que deseja REMOVER TODAS AS AMIZADES da conta '{selectedAccounts[0].Username}'?\n\nEssa ação não pode ser desfeita!"
+                : $"Tem certeza que deseja REMOVER TODAS AS AMIZADES de {selectedAccounts.Count} contas?\n\nEssa ação não pode ser desfeita!";
 
+            DialogResult confirm = MessageBox.Show(msg, "Confirmar Remoção de Amizades", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (confirm != DialogResult.Yes) return;
 
+            int totalRemoved = 0;
+            int accountsProcessed = 0;
 
-            try
+            foreach (var account in selectedAccounts)
             {
-                AddLog($"🗑️ Removendo amizades de {SelectedAccount.Username}...");
-                
-                int removedCount = await DeleteAllFriendsAsync(SelectedAccount);
-                
-                AddLogSuccess($"✅ {removedCount} amizades removidas de {SelectedAccount.Username}");
-                MessageBox.Show($"{removedCount} amizades removidas com sucesso!", "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                try
+                {
+                    AddLog($"🗑️ Removendo amizades de {account.Username} ({++accountsProcessed}/{selectedAccounts.Count})...");
+                    int removedCount = await DeleteAllFriendsAsync(account);
+                    totalRemoved += removedCount;
+                    AddLogSuccess($"✅ {removedCount} amizades removidas de {account.Username}");
+                }
+                catch (Exception ex)
+                {
+                    AddLogError($"❌ Erro ao remover amizades de {account.Username}: {ex.Message}");
+                }
             }
-            catch (Exception ex)
-            {
-                AddLogError($"❌ Erro ao remover amizades: {ex.Message}");
-                MessageBox.Show($"Erro: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-            }
+
+            MessageBox.Show(
+                $"{totalRemoved} amizades removidas de {selectedAccounts.Count} conta(s)!",
+                "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -2306,16 +2272,6 @@ namespace RBX_Alt_Manager
                     return;
                 }
 
-                // Atualizar na planilha (legacy Google Sheets)
-                try
-                {
-                    await UpdateRobuxInSheetAsync(SelectedAccount.Username, robuxAmount);
-                }
-                catch (Exception sheetEx)
-                {
-                    AddLogWarning($"⚠️ Erro ao atualizar planilha (ignorado): {sheetEx.Message}");
-                }
-
                 // Atualizar no Supabase - buscar o jogo "ROBUX" e o item "ROBUX"
                 int robuxGameId = 0;
                 try
@@ -2355,26 +2311,14 @@ namespace RBX_Alt_Manager
                 
                 AddLogSuccess($"✅ Saldo atualizado: {SelectedAccount.Username} = {robuxAmount} R$");
                 
-                // Invalidar cache do jogo ROBUX e recarregar painéis
-                _sheetsIntegration?.InvalidateCache(660585678);
-                
-                // Resetar para forçar recarregamento do painel ALTERAR ESTOQUE
-                _lastLoadedUsernameSupabase = "";
-                
-                // Atualizar painel ALTERAR ESTOQUE (agora com dados atualizados no Supabase)
-                await LoadProductsFromSupabaseAsync(SelectedAccount.Username);
-                
                 // Atualizar painel de INVENTÁRIO se estiver visualizando o jogo ROBUX
                 if (robuxGameId > 0)
                 {
                     _inventoryPanel?.RefreshIfCurrentGame(robuxGameId);
                 }
-                
-                // Se estiver no jogo ROBUX (legacy), atualizar painel de jogos também
-                if (_selectedGameGid == 660585678)
-                {
-                    await ShowGameItemsAsync(660585678, "ROBUX");
-                }
+
+                // Atualizar painel de ESTOQUE para refletir o novo saldo
+                _ = LoadProductsFromSupabaseAsync(SelectedAccount.Username);
             }
             catch (Exception ex)
             {
@@ -2383,24 +2327,29 @@ namespace RBX_Alt_Manager
         }
 
         /// <summary>
-        /// Atualiza o saldo de Robux de uma conta na planilha
+        /// Busca o saldo de Robux de uma conta via API do Roblox
         /// </summary>
-        private async Task UpdateRobuxInSheetAsync(string username, long robuxAmount)
+        private async Task<long> GetAccountRobuxAsync(Account account)
         {
-            if (string.IsNullOrEmpty(APPS_SCRIPT_URL))
-                throw new Exception("Apps Script URL não configurado");
-
-            string url = $"{APPS_SCRIPT_URL}?action=updateRobux" +
-                $"&sheetName=Robux" +
-                $"&username={Uri.EscapeDataString(username)}" +
-                $"&robux={robuxAmount}";
-
-            var response = await _sheetHttpClient.GetStringAsync(url);
-            
-            if (!response.Contains("\"success\":true"))
+            try
             {
-                throw new Exception($"Resposta do servidor: {response}");
+                var request = new RestRequest($"v1/users/{account.UserID}/currency", Method.Get);
+                request.AddHeader("Cookie", $".ROBLOSECURITY={account.SecurityToken}");
+
+                var response = await EconClient.ExecuteAsync(request);
+
+                if (response.IsSuccessful && !string.IsNullOrEmpty(response.Content))
+                {
+                    var data = JObject.Parse(response.Content);
+                    return data["robux"]?.Value<long>() ?? 0;
+                }
             }
+            catch (Exception ex)
+            {
+                AddLogWarning($"⚠️ Erro ao buscar Robux: {ex.Message}");
+            }
+
+            return 0;
         }
 
         private void byCookieToolStripMenuItem_Click(object sender, EventArgs e)
@@ -2490,99 +2439,18 @@ namespace RBX_Alt_Manager
             if (!string.IsNullOrEmpty(SelectedAccount.GetField("SavedPlaceId"))) PlaceID.Text = SelectedAccount.GetField("SavedPlaceId");
             if (!string.IsNullOrEmpty(SelectedAccount.GetField("SavedJobId"))) JobID.Text = SelectedAccount.GetField("SavedJobId");
 
-            // Buscar produtos do Supabase (sistema novo)
+            // Carregar estoque da conta selecionada (Supabase)
             _ = LoadProductsFromSupabaseAsync(SelectedAccount.Username);
         }
 
-        /// <summary>
-        /// Carrega os produtos de uma conta a partir da planilha Google Sheets
-        /// </summary>
-        // Proteção contra carregamentos múltiplos
-        private bool _isLoadingProducts = false;
-        private DateTime _lastProductsLoad = DateTime.MinValue;
-        private string _lastLoadedUsername = "";
+        #region Estoque Panel (Supabase)
 
-        private async Task LoadProductsFromSheetAsync(string username)
-        {
-            try
-            {
-                // Proteção: não carregar se já está carregando
-                if (_isLoadingProducts)
-                {
-                    return;
-                }
-
-                // Proteção: debounce de 2 segundos para o mesmo usuário
-                if (username == _lastLoadedUsername && 
-                    (DateTime.Now - _lastProductsLoad).TotalSeconds < 2)
-                {
-                    return;
-                }
-
-                _isLoadingProducts = true;
-                _lastLoadedUsername = username;
-                _lastProductsLoad = DateTime.Now;
-
-                // Inicializar integração se necessário
-                if (_sheetsIntegration == null)
-                {
-                    _sheetsIntegration = new Classes.GoogleSheetsIntegration(SHEETS_ID);
-                    AddLog($"📊 Conectando à planilha...");
-                }
-
-                int reqAntes = RequestCount;
-                
-                // Buscar produtos de TODOS os jogos
-                var allGameProducts = await _sheetsIntegration.GetAllProductsForUserAsync(username);
-
-                int reqDepois = RequestCount;
-                int reqUsadas = reqDepois - reqAntes;
-
-                // Atualizar painel visual
-                UpdateEstoquePanel(username, allGameProducts);
-
-                // Buscar 2FA Secret do jogo ROBUX (GID 660585678)
-                var robuxGame = allGameProducts.FirstOrDefault(g => g.Gid == 660585678);
-                if (robuxGame != null && robuxGame.Products.Count > 0)
-                {
-                    var productWith2FA = robuxGame.Products.FirstOrDefault(p => !string.IsNullOrEmpty(p.TwoFASecret));
-                    if (productWith2FA != null)
-                    {
-                        TwoFASecretTextBox.Text = productWith2FA.TwoFASecret;
-                        AddLog($"🔐 2FA Secret carregado para {username}");
-                    }
-                }
-
-                if (allGameProducts.Count > 0)
-                {
-                    int totalProducts = allGameProducts.Sum(g => g.Products.Count);
-                    AddLog($"📦 {username}: {totalProducts} produtos em {allGameProducts.Count} jogos (+{reqUsadas} req, total: {reqDepois})");
-                }
-                else
-                {
-                    AddLog($"📦 {username}: Nenhum produto (+{reqUsadas} req, total: {reqDepois})");
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLogError($"[Sheets] Erro: {ex.Message}");
-            }
-            finally
-            {
-                _isLoadingProducts = false;
-            }
-        }
-
-        /// <summary>
-        /// Carrega produtos de uma conta do Supabase no painel ALTERAR ESTOQUE
-        /// </summary>
-        // Proteção contra carregamentos múltiplos do Supabase
         private CancellationTokenSource _estoqueCts;
         private string _lastLoadedUsernameSupabase = "";
+        private Dictionary<string, CancellationTokenSource> _supabaseEstoqueDebounce = new Dictionary<string, CancellationTokenSource>();
 
         private async Task LoadProductsFromSupabaseAsync(string username)
         {
-            // Cancelar carregamento anterior se existir
             _estoqueCts?.Cancel();
             var cts = new CancellationTokenSource();
             _estoqueCts = cts;
@@ -2596,18 +2464,14 @@ namespace RBX_Alt_Manager
                 }
 
                 _lastLoadedUsernameSupabase = username;
-
-                // Atualizar label do usuário
                 EstoqueUserLabel.Text = username;
                 EstoqueItemsPanel.Controls.Clear();
 
-                // Buscar inventário, jogos e itens em PARALELO (3 chamadas simultâneas)
                 var inventoryTask = SupabaseManager.Instance.GetInventoryByUsernameAsync(username);
                 var gamesTask = SupabaseManager.Instance.GetGamesAsync();
                 var allItemsTask = SupabaseManager.Instance.GetAllGameItemsAsync();
 
                 await Task.WhenAll(inventoryTask, gamesTask, allItemsTask);
-
                 if (cts.Token.IsCancellationRequested) return;
 
                 var inventory = inventoryTask.Result;
@@ -2620,18 +2484,16 @@ namespace RBX_Alt_Manager
                     var noItemsLabel = new Label
                     {
                         Text = "Nenhum produto",
-                        ForeColor = System.Drawing.Color.Gray,
-                        Font = new System.Drawing.Font("Segoe UI", 8F),
-                        Size = new System.Drawing.Size(145, 20),
-                        TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+                        ForeColor = Color.Gray,
+                        Font = new Font("Segoe UI", 8F),
+                        Size = new Size(210, 20),
+                        TextAlign = ContentAlignment.MiddleCenter
                     };
                     EstoqueItemsPanel.Controls.Add(noItemsLabel);
                     return;
                 }
 
-                var gameDict = games.ToDictionary(g => g.Id, g => g.Name);
-
-                // Mapear itens para jogos (dados já carregados, sem chamadas extras)
+                var gameDict = games.ToDictionary(g => g.Id, g => g);
                 var itemToGame = new Dictionary<int, int>();
                 var itemNames = new Dictionary<int, string>();
 
@@ -2641,44 +2503,51 @@ namespace RBX_Alt_Manager
                     itemNames[item.Id] = item.Name;
                 }
 
-                // Agrupar por jogo
                 var groupedByGame = inventory
                     .Where(inv => itemToGame.ContainsKey(inv.ItemId))
                     .GroupBy(inv => itemToGame[inv.ItemId])
-                    .OrderBy(g => gameDict.ContainsKey(g.Key) ? gameDict[g.Key] : "")
+                    .OrderBy(g => gameDict.ContainsKey(g.Key) ? gameDict[g.Key].Name : "")
                     .ToList();
 
-                // Mostrar quantidade de jogos
                 EstoqueGameLabel.Text = groupedByGame.Count == 1
-                    ? (gameDict.ContainsKey(groupedByGame[0].Key) ? gameDict[groupedByGame[0].Key].ToUpper() : "JOGO")
+                    ? (gameDict.ContainsKey(groupedByGame[0].Key) ? gameDict[groupedByGame[0].Key].Name.ToUpper() : "JOGO")
                     : $"{groupedByGame.Count} JOGOS";
 
-                // Largura do painel
                 int headerWidth = EstoquePanel.Width - 25;
-                if (headerWidth < 120) headerWidth = 135;
+                if (headerWidth < 120) headerWidth = 200;
 
-                // Limpar painel novamente antes de popular (garante que dados antigos não ficam)
                 EstoqueItemsPanel.Controls.Clear();
 
-                // Adicionar produtos por jogo
                 foreach (var gameGroup in groupedByGame)
                 {
-                    string gameName = gameDict.ContainsKey(gameGroup.Key) ? gameDict[gameGroup.Key] : "Jogo Desconhecido";
+                    var gameObj = gameDict.ContainsKey(gameGroup.Key) ? gameDict[gameGroup.Key] : null;
+                    string gameName = gameObj?.Name ?? "Jogo Desconhecido";
 
-                    // Header do jogo
                     var gameHeader = new Label
                     {
                         Text = gameName.ToUpper(),
-                        Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold),
-                        ForeColor = System.Drawing.Color.LimeGreen,
-                        BackColor = System.Drawing.Color.FromArgb(45, 45, 45),
-                        Size = new System.Drawing.Size(headerWidth, 18),
-                        TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
-                        Margin = new Padding(0, 5, 0, 2)
+                        Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                        ForeColor = Color.LimeGreen,
+                        BackColor = Color.FromArgb(45, 45, 45),
+                        Size = new Size(headerWidth, 18),
+                        TextAlign = ContentAlignment.MiddleCenter,
+                        Margin = new Padding(0, 4, 0, 2),
+                        Cursor = Cursors.Hand
                     };
+
+                    // Ao clicar no header do jogo, preencher PlaceID
+                    if (gameObj != null && gameObj.PlaceId.HasValue && gameObj.PlaceId.Value > 0)
+                    {
+                        long pid = gameObj.PlaceId.Value;
+                        gameHeader.Click += (s, e) =>
+                        {
+                            PlaceID.Text = pid.ToString();
+                            AddLog($"🎮 PlaceID preenchido: {pid} ({gameName})");
+                        };
+                    }
+
                     EstoqueItemsPanel.Controls.Add(gameHeader);
 
-                    // Produtos
                     foreach (var inv in gameGroup.OrderBy(i => itemNames.ContainsKey(i.ItemId) ? itemNames[i.ItemId] : ""))
                     {
                         string itemName = itemNames.ContainsKey(inv.ItemId) ? itemNames[inv.ItemId] : $"Item {inv.ItemId}";
@@ -2686,67 +2555,62 @@ namespace RBX_Alt_Manager
                         EstoqueItemsPanel.Controls.Add(itemPanel);
                     }
                 }
-
-                AddLog($"📦 {username}: {inventory.Count} produtos em {groupedByGame.Count} jogos (Supabase)");
             }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                if (!cts.Token.IsCancellationRequested)
-                    AddLogError($"Erro ao carregar estoque: {ex.Message}");
+                AddLogError($"[Estoque] Erro: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Cria um painel para um item do Supabase com botões +/-
-        /// </summary>
         private Panel CreateSupabaseEstoqueItemPanel(SupabaseInventoryEntry inventory, string itemName)
         {
             int panelWidth = EstoquePanel.Width - 25;
-            if (panelWidth < 120) panelWidth = 135;
+            if (panelWidth < 120) panelWidth = 200;
 
             var panel = new Panel
             {
-                Size = new System.Drawing.Size(panelWidth, 38),
-                BackColor = System.Drawing.Color.FromArgb(35, 35, 35),
-                Margin = new Padding(0, 1, 0, 1)
+                Size = new Size(panelWidth, 24),
+                BackColor = Color.FromArgb(50, 50, 50),
+                Margin = new Padding(0, 1, 0, 0)
             };
 
             var nameLabel = new Label
             {
                 Text = itemName,
-                Font = new System.Drawing.Font("Segoe UI", 7F),
-                ForeColor = System.Drawing.Color.LightGray,
-                Location = new System.Drawing.Point(2, 1),
-                Size = new System.Drawing.Size(panelWidth - 5, 15),
+                Font = new Font("Segoe UI", 7F),
+                ForeColor = Color.White,
+                Location = new System.Drawing.Point(2, 4),
+                Size = new Size(panelWidth - 120, 16),
                 AutoEllipsis = true
             };
 
             var minusBtn = new Button
             {
                 Text = "-",
-                Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.White,
-                BackColor = System.Drawing.Color.FromArgb(80, 80, 80),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(80, 40, 40),
                 FlatStyle = FlatStyle.Flat,
-                Location = new System.Drawing.Point(7, 17),
-                Size = new System.Drawing.Size(30, 15),
-                Cursor = Cursors.Hand,
-                Tag = inventory
+                Size = new Size(22, 20),
+                Location = new System.Drawing.Point(panelWidth - 118, 2),
+                Tag = inventory,
+                Cursor = Cursors.Hand
             };
             minusBtn.FlatAppearance.BorderSize = 0;
             minusBtn.Click += SupabaseEstoqueMinus_Click;
 
             var qtyTextBox = new TextBox
             {
-                Text = inventory.Quantity.ToString("N0", new System.Globalization.CultureInfo("pt-BR")),
-                Name = $"sqty_{inventory.Id}",
-                Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.White,
-                BackColor = System.Drawing.Color.FromArgb(50, 50, 50),
+                Text = FormatNumberWithThousands(inventory.Quantity),
+                Name = $"estoqueqty_{inventory.Id}",
+                Font = new Font("Segoe UI", 7.5F),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(35, 35, 35),
                 BorderStyle = BorderStyle.None,
-                Location = new System.Drawing.Point(42, 17),
-                Size = new System.Drawing.Size(panelWidth - 90, 15),
                 TextAlign = HorizontalAlignment.Center,
+                Size = new Size(68, 16),
+                Location = new System.Drawing.Point(panelWidth - 94, 4),
                 Tag = inventory
             };
             qtyTextBox.KeyDown += SupabaseEstoqueQty_KeyDown;
@@ -2755,23 +2619,19 @@ namespace RBX_Alt_Manager
             var plusBtn = new Button
             {
                 Text = "+",
-                Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.White,
-                BackColor = System.Drawing.Color.FromArgb(0, 120, 0),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(40, 80, 40),
                 FlatStyle = FlatStyle.Flat,
-                Location = new System.Drawing.Point(panelWidth - 38, 17),
-                Size = new System.Drawing.Size(30, 15),
-                Cursor = Cursors.Hand,
-                Tag = inventory
+                Size = new Size(22, 20),
+                Location = new System.Drawing.Point(panelWidth - 24, 2),
+                Tag = inventory,
+                Cursor = Cursors.Hand
             };
             plusBtn.FlatAppearance.BorderSize = 0;
             plusBtn.Click += SupabaseEstoquePlus_Click;
 
-            panel.Controls.Add(nameLabel);
-            panel.Controls.Add(minusBtn);
-            panel.Controls.Add(qtyTextBox);
-            panel.Controls.Add(plusBtn);
-
+            panel.Controls.AddRange(new Control[] { nameLabel, minusBtn, qtyTextBox, plusBtn });
             return panel;
         }
 
@@ -2779,17 +2639,13 @@ namespace RBX_Alt_Manager
         {
             var btn = sender as Button;
             var inventory = btn?.Tag as SupabaseInventoryEntry;
-            if (inventory == null || inventory.Quantity <= 0) return;
+            if (inventory == null) return;
 
-            inventory.Quantity--;
+            if (inventory.Quantity > 0) inventory.Quantity--;
+
             var parent = btn.Parent as Panel;
-            var qtyTextBox = parent?.Controls.OfType<TextBox>().FirstOrDefault(t => t.Name.StartsWith("sqty_"));
-            if (qtyTextBox != null) 
-                qtyTextBox.Text = inventory.Quantity.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
-
-            // Atualizar o InventoryPanel também
-            AddLog($"🔄 Sincronizando ID={inventory.Id}, Qty={inventory.Quantity}");
-            _inventoryPanel?.UpdateInventoryQuantity(inventory.Id, inventory.Quantity);
+            var qtyTextBox = parent?.Controls.OfType<TextBox>().FirstOrDefault(t => t.Name.StartsWith("estoqueqty_"));
+            if (qtyTextBox != null) qtyTextBox.Text = FormatNumberWithThousands(inventory.Quantity);
 
             ScheduleSupabaseEstoqueUpdate(inventory);
         }
@@ -2801,14 +2657,10 @@ namespace RBX_Alt_Manager
             if (inventory == null) return;
 
             inventory.Quantity++;
-            var parent = btn.Parent as Panel;
-            var qtyTextBox = parent?.Controls.OfType<TextBox>().FirstOrDefault(t => t.Name.StartsWith("sqty_"));
-            if (qtyTextBox != null) 
-                qtyTextBox.Text = inventory.Quantity.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
 
-            // Atualizar o InventoryPanel também
-            AddLog($"🔄 Sincronizando ID={inventory.Id}, Qty={inventory.Quantity}");
-            _inventoryPanel?.UpdateInventoryQuantity(inventory.Id, inventory.Quantity);
+            var parent = btn.Parent as Panel;
+            var qtyTextBox = parent?.Controls.OfType<TextBox>().FirstOrDefault(t => t.Name.StartsWith("estoqueqty_"));
+            if (qtyTextBox != null) qtyTextBox.Text = FormatNumberWithThousands(inventory.Quantity);
 
             ScheduleSupabaseEstoqueUpdate(inventory);
         }
@@ -2833,38 +2685,26 @@ namespace RBX_Alt_Manager
             var inventory = textBox.Tag as SupabaseInventoryEntry;
             if (inventory == null) return;
 
-            string cleanText = textBox.Text.Replace(".", "").Replace(",", "");
-            int newQty;
-            if (!int.TryParse(cleanText, out newQty)) newQty = 0;
+            long newQty = ParseAbbreviatedNumber(textBox.Text);
             if (newQty < 0) newQty = 0;
 
-            if (newQty == inventory.Quantity)
+            if (newQty != inventory.Quantity)
             {
-                textBox.Text = newQty.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
-                return;
+                inventory.Quantity = newQty;
+                ScheduleSupabaseEstoqueUpdate(inventory);
             }
 
-            inventory.Quantity = newQty;
-            textBox.Text = newQty.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
-            
-            // Atualizar o InventoryPanel também
-            _inventoryPanel?.UpdateInventoryQuantity(inventory.Id, inventory.Quantity);
-            
-            ScheduleSupabaseEstoqueUpdate(inventory);
+            textBox.Text = FormatNumberWithThousands(inventory.Quantity);
         }
-
-        private Dictionary<string, CancellationTokenSource> _supabaseEstoqueDebounce = new Dictionary<string, CancellationTokenSource>();
 
         private void ScheduleSupabaseEstoqueUpdate(SupabaseInventoryEntry inventory)
         {
-            string key = $"estoque_{inventory.Id}";
-
+            string key = $"supa_{inventory.Id}";
             if (_supabaseEstoqueDebounce.ContainsKey(key))
             {
                 _supabaseEstoqueDebounce[key].Cancel();
                 _supabaseEstoqueDebounce[key].Dispose();
             }
-
             var cts = new CancellationTokenSource();
             _supabaseEstoqueDebounce[key] = cts;
 
@@ -2872,23 +2712,70 @@ namespace RBX_Alt_Manager
             {
                 try
                 {
-                    await Task.Delay(1500, cts.Token);
-                    
+                    await Task.Delay(500, cts.Token);
                     if (!cts.Token.IsCancellationRequested)
                     {
-                        var result = await SupabaseManager.Instance.UpdateInventoryQuantityAsync(inventory.Id, inventory.Quantity);
-                        
-                        if (result)
-                            AddLog($"✅ Estoque atualizado: {inventory.Quantity}");
-                        else
-                            AddLog($"⚠️ Erro ao salvar estoque");
-                        
-                        if (_supabaseEstoqueDebounce.ContainsKey(key))
-                            _supabaseEstoqueDebounce.Remove(key);
+                        await SupabaseManager.Instance.UpdateInventoryQuantityAsync(inventory.Id, inventory.Quantity);
+                        Classes.InventorySyncService.Instance.MarkLocalUpdate(inventory.Id);
+                        AddLog($"✅ Estoque atualizado: {inventory.Quantity}");
+
+                        // Atualizar painel de inventário também
+                        _inventoryPanel?.UpdateInventoryQuantity(inventory.Id, inventory.Quantity);
                     }
                 }
                 catch (TaskCanceledException) { }
+                catch (Exception ex)
+                {
+                    AddLogError($"Erro ao salvar estoque: {ex.Message}");
+                }
+                finally
+                {
+                    if (_supabaseEstoqueDebounce.ContainsKey(key))
+                        _supabaseEstoqueDebounce.Remove(key);
+                }
             });
+        }
+
+        /// <summary>
+        /// Chamado pelo InventorySyncService quando outro usuário atualizou inventário.
+        /// Roda no thread da UI (WinForms Timer).
+        /// </summary>
+        private void OnInventoryChangedFromSync(object sender, System.Collections.Generic.List<SupabaseInventoryEntry> changedEntries)
+        {
+            if (DebugModeAtivo)
+                AddLog($"🔄 [Sync] {changedEntries.Count} alterações recebidas de outro usuário");
+
+            // 1. Atualizar EstoquePanel (por conta)
+            if (!string.IsNullOrEmpty(_lastLoadedUsernameSupabase))
+            {
+                foreach (var entry in changedEntries)
+                {
+                    if (!entry.Username.Equals(_lastLoadedUsernameSupabase, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    // Buscar TextBox no EstoqueItemsPanel pelo nome
+                    foreach (Control panel in EstoqueItemsPanel.Controls)
+                    {
+                        if (panel is Panel p)
+                        {
+                            foreach (Control child in p.Controls)
+                            {
+                                if (child is TextBox tb && tb.Name == $"estoqueqty_{entry.Id}")
+                                {
+                                    tb.Text = FormatNumberWithThousands(entry.Quantity);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Encaminhar para InventoryPanelControl
+            foreach (var entry in changedEntries)
+            {
+                _inventoryPanel?.UpdateInventoryQuantity(entry.Id, entry.Quantity);
+            }
         }
 
         private void ClearEstoquePanel()
@@ -2898,418 +2785,17 @@ namespace RBX_Alt_Manager
             EstoqueItemsPanel.Controls.Clear();
         }
 
-        /// <summary>
-        /// Atualiza o painel de estoque com os produtos do usuário
-        /// </summary>
-        private void UpdateEstoquePanel(string username, List<Classes.GameProducts> gameProducts)
-        {
-            if (EstoquePanel == null) return;
-
-            // Atualizar título com nome da conta
-            EstoqueUserLabel.Text = username;
-            
-            // Limpar itens anteriores
-            EstoqueItemsPanel.Controls.Clear();
-
-            if (gameProducts.Count == 0)
-            {
-                EstoqueGameLabel.Text = "SEM ESTOQUE";
-                var noItemsLabel = new Label
-                {
-                    Text = "Nenhum produto",
-                    ForeColor = System.Drawing.Color.Gray,
-                    Font = new System.Drawing.Font("Segoe UI", 8F),
-                    Size = new System.Drawing.Size(145, 20),
-                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter
-                };
-                EstoqueItemsPanel.Controls.Add(noItemsLabel);
-                return;
-            }
-
-            // ORDENAR jogos por nome (ordem alfabética)
-            var sortedGames = gameProducts.OrderBy(g => g.GameName).ToList();
-
-            // Adicionar produtos de cada jogo
-            foreach (var game in sortedGames)
-            {
-                // Largura fixa menor para evitar scroll
-                int headerWidth = EstoquePanel.Width - 25;
-                if (headerWidth < 120) headerWidth = 135;
-
-                // Buscar PlaceId do jogo no config
-                string gamePlaceId = GetPlaceIdForGame(game.GameName);
-
-                // Separador com nome do jogo (CLICÁVEL)
-                var gameHeader = new Label
-                {
-                    Text = game.GameName.ToUpper(),
-                    Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold),
-                    ForeColor = System.Drawing.Color.Cyan,
-                    BackColor = System.Drawing.Color.FromArgb(45, 45, 45),
-                    Size = new System.Drawing.Size(headerWidth, 18),
-                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
-                    Margin = new Padding(0, 5, 0, 2),
-                    Cursor = Cursors.Hand,
-                    Tag = gamePlaceId // Guardar PlaceId no Tag
-                };
-                
-                // Evento de click para colocar PlaceId no campo
-                gameHeader.Click += (s, e) =>
-                {
-                    var label = s as Label;
-                    var placeId = label?.Tag as string;
-                    if (!string.IsNullOrEmpty(placeId))
-                    {
-                        PlaceID.Text = placeId;
-                        AddLog($"🎮 ID do jogo '{label.Text}' definido: {placeId}");
-                    }
-                };
-                
-                EstoqueItemsPanel.Controls.Add(gameHeader);
-
-                // ORDENAR produtos por nome (ordem alfabética)
-                var sortedProducts = game.Products.OrderBy(p => p.Product).ToList();
-
-                // Adicionar cada produto
-                foreach (var product in sortedProducts)
-                {
-                    var itemPanel = CreateEstoqueItemPanel(product);
-                    EstoqueItemsPanel.Controls.Add(itemPanel);
-                }
-            }
-
-            // Atualizar label do jogo principal
-            EstoqueGameLabel.Text = sortedGames.Count > 1 ? $"{sortedGames.Count} JOGOS" : sortedGames[0].GameName.ToUpper();
-        }
-
-        /// <summary>
-        /// Busca o PlaceId de um jogo pelo nome no games_config.json
-        /// </summary>
-        private string GetPlaceIdForGame(string gameName)
-        {
-            try
-            {
-                var config = Classes.GamesConfig.Instance;
-                if (config?.Games != null)
-                {
-                    var game = config.Games.FirstOrDefault(g => 
-                        g.Name.Equals(gameName, StringComparison.OrdinalIgnoreCase));
-                    return game?.PlaceId ?? "";
-                }
-            }
-            catch { }
-            return "";
-        }
-
-        /// <summary>
-        /// Cria um painel para um item de produto com botões + e - e campo editável
-        /// </summary>
-        private Panel CreateEstoqueItemPanel(Classes.SheetProduct product)
-        {
-            // Largura fixa menor para evitar scroll
-            int panelWidth = EstoquePanel.Width - 25;
-            if (panelWidth < 120) panelWidth = 135;
-
-            var panel = new Panel
-            {
-                Size = new System.Drawing.Size(panelWidth, 38),
-                BackColor = System.Drawing.Color.FromArgb(35, 35, 35),
-                Margin = new Padding(0, 1, 0, 1)
-            };
-
-            // Nome do produto
-            var nameLabel = new Label
-            {
-                Text = product.Product,
-                Font = new System.Drawing.Font("Segoe UI", 7F),
-                ForeColor = System.Drawing.Color.LightGray,
-                Location = new System.Drawing.Point(2, 1),
-                Size = new System.Drawing.Size(panelWidth - 5, 15),
-                AutoEllipsis = true
-            };
-
-            // Calcular posições proporcionais com margens iguais
-            int btnWidth = 28;
-            int margin = 4; // Margem igual dos dois lados
-            int gap = 4;    // Espaço entre botão e textbox
-            int textBoxX = margin + btnWidth + gap;
-            int textBoxWidth = panelWidth - (btnWidth * 2) - (margin * 2) - (gap * 2);
-            int plusBtnX = panelWidth - margin - btnWidth;
-            
-            // Botão -
-            var minusBtn = new Button
-            {
-                Text = "-",
-                Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.White,
-                BackColor = System.Drawing.Color.FromArgb(255, 128, 128), // VERMELHO
-                FlatStyle = FlatStyle.Flat,
-                Location = new System.Drawing.Point(margin, 18),
-                Size = new System.Drawing.Size(btnWidth, 16),
-                Cursor = Cursors.Hand,
-                Tag = product
-            };
-            minusBtn.FlatAppearance.BorderSize = 0;
-            minusBtn.Click += EstoqueMinusButton_Click;
-
-            // Quantidade TextBox
-            var qtyTextBox = new TextBox
-            {
-                Text = FormatNumberWithThousands(product.QuantityInt),
-                Name = $"qty_{product.RowIndex}_{product.Gid}",
-                Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.White,
-                BackColor = System.Drawing.Color.FromArgb(50, 50, 50),
-                BorderStyle = BorderStyle.None,
-                Location = new System.Drawing.Point(textBoxX, 18),
-                Size = new System.Drawing.Size(textBoxWidth, 15),
-                TextAlign = HorizontalAlignment.Center,
-                Tag = product
-            };
-            qtyTextBox.KeyPress += EstoqueQtyTextBox_KeyPress;
-            qtyTextBox.Leave += EstoqueQtyTextBox_Leave;
-            qtyTextBox.KeyDown += EstoqueQtyTextBox_KeyDown;
-            qtyTextBox.Enter += EstoqueQtyTextBox_Enter;
-
-            // Botão +
-            var plusBtn = new Button
-            {
-                Text = "+",
-                Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.White,
-                BackColor = System.Drawing.Color.FromArgb(0, 120, 0),
-                FlatStyle = FlatStyle.Flat,
-                Location = new System.Drawing.Point(plusBtnX, 18),
-                Size = new System.Drawing.Size(btnWidth, 16),
-                Cursor = Cursors.Hand,
-                Tag = product
-            };
-            plusBtn.FlatAppearance.BorderSize = 0;
-            plusBtn.Click += EstoquePlusButton_Click;
-
-            panel.Controls.Add(nameLabel);
-            panel.Controls.Add(minusBtn);
-            panel.Controls.Add(qtyTextBox);
-            panel.Controls.Add(plusBtn);
-
-            return panel;
-        }
-
-        /// <summary>
-        /// Só permite números no campo de quantidade
-        /// </summary>
-        private void EstoqueQtyTextBox_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            // Permitir apenas números, controles (backspace, delete) e separadores
-            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && e.KeyChar != '.' && e.KeyChar != ',')
-            {
-                e.Handled = true;
-            }
-        }
-
-        /// <summary>
-        /// Salva quando pressiona Enter
-        /// </summary>
-        private void EstoqueQtyTextBox_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Enter)
-            {
-                e.SuppressKeyPress = true;
-                var textBox = sender as TextBox;
-                SaveQtyFromTextBox(textBox);
-            }
-        }
-
-        /// <summary>
-        /// Salva quando sai do campo
-        /// </summary>
-        private void EstoqueQtyTextBox_Leave(object sender, EventArgs e)
-        {
-            var textBox = sender as TextBox;
-            SaveQtyFromTextBox(textBox);
-        }
-
-        /// <summary>
-        /// Quando entrar no TextBox, mostrar número sem formatação para facilitar edição
-        /// </summary>
-        private void EstoqueQtyTextBox_Enter(object sender, EventArgs e)
-        {
-            var textBox = sender as TextBox;
-            if (textBox == null) return;
-            var product = textBox.Tag as Classes.SheetProduct;
-            if (product == null) return;
-            
-            // Mostrar número sem formatação quando editando
-            textBox.Text = product.QuantityInt.ToString();
-            textBox.SelectAll();
-        }
-
-        /// <summary>
-        /// Salva a quantidade digitada no TextBox
-        /// </summary>
-        private async void SaveQtyFromTextBox(TextBox textBox)
-        {
-            if (textBox == null) return;
-            var product = textBox.Tag as Classes.SheetProduct;
-            if (product == null) return;
-
-            // Remover separadores de milhares antes de parsear
-            string cleanText = textBox.Text.Replace(".", "").Replace(",", "");
-            
-            int newQty;
-            if (!int.TryParse(cleanText, out newQty)) newQty = 0;
-            if (newQty < 0) newQty = 0;
-
-            // Reformatar sempre que sair do campo
-            textBox.Text = FormatNumberWithThousands(newQty);
-            
-            // Se não mudou, não atualiza a planilha
-            if (newQty == product.QuantityInt) return;
-
-            product.QuantityInt = newQty;
-            product.Quantity = newQty.ToString();
-
-            await UpdateSheetValueAsync(product);
-        }
-
-        /// <summary>
-        /// Evento do botão - para diminuir quantidade
-        /// </summary>
-        private void EstoqueMinusButton_Click(object sender, EventArgs e)
-        {
-            var btn = sender as Button;
-            var product = btn?.Tag as Classes.SheetProduct;
-            if (product == null) return;
-
-            if (product.QuantityInt > 0)
-            {
-                product.QuantityInt--;
-                product.Quantity = product.QuantityInt.ToString();
-                
-                // Atualizar TextBox com formatação
-                var parent = btn.Parent as Panel;
-                var qtyTextBox = parent?.Controls.OfType<TextBox>().FirstOrDefault(t => t.Name.StartsWith("qty_"));
-                if (qtyTextBox != null) qtyTextBox.Text = FormatNumberWithThousands(product.QuantityInt);
-
-                // Atualizar planilha com debounce
-                ScheduleSaveToSheet(product);
-            }
-        }
-
-        /// <summary>
-        /// Evento do botão + para aumentar quantidade
-        /// </summary>
-        private void EstoquePlusButton_Click(object sender, EventArgs e)
-        {
-            var btn = sender as Button;
-            var product = btn?.Tag as Classes.SheetProduct;
-            if (product == null) return;
-
-            product.QuantityInt++;
-            product.Quantity = product.QuantityInt.ToString();
-            
-            // Atualizar TextBox com formatação
-            var parent = btn.Parent as Panel;
-            var qtyTextBox = parent?.Controls.OfType<TextBox>().FirstOrDefault(t => t.Name.StartsWith("qty_"));
-            if (qtyTextBox != null) qtyTextBox.Text = FormatNumberWithThousands(product.QuantityInt);
-
-            // Atualizar planilha com debounce
-            ScheduleSaveToSheet(product);
-        }
-
-        // HttpClient reutilizável para melhor performance
-        private static readonly HttpClient _sheetHttpClient = new HttpClient(new HttpClientHandler { MaxConnectionsPerServer = 10, UseProxy = false }) 
-        { 
-            Timeout = TimeSpan.FromSeconds(8) 
-        };
-
-        // Sistema de Debounce para economizar requisições
-        private Dictionary<string, System.Windows.Forms.Timer> _debounceTimers = new Dictionary<string, System.Windows.Forms.Timer>();
-        private Dictionary<string, Classes.SheetProduct> _pendingSaves = new Dictionary<string, Classes.SheetProduct>();
-
-        /// <summary>
-        /// Agenda o salvamento após 500ms de inatividade (debounce simples)
-        /// </summary>
-        private void ScheduleSaveToSheet(Classes.SheetProduct product)
-        {
-            string key = $"{product.Gid}_{product.RowIndex}";
-
-            // Atualizar produto pendente
-            _pendingSaves[key] = product;
-
-            // Se já existe um timer, parar e reiniciar
-            if (_debounceTimers.ContainsKey(key))
-            {
-                _debounceTimers[key].Stop();
-                _debounceTimers[key].Start();
-            }
-            else
-            {
-                // Criar novo timer
-                var timer = new System.Windows.Forms.Timer();
-                timer.Interval = 500; // 500ms após último clique
-                timer.Tick += async (s, e) =>
-                {
-                    timer.Stop();
-                    
-                    if (_pendingSaves.ContainsKey(key))
-                    {
-                        var productToSave = _pendingSaves[key];
-                        _pendingSaves.Remove(key);
-                        await UpdateSheetValueAsync(productToSave);
-                    }
-                    
-                    // Limpar timer
-                    if (_debounceTimers.ContainsKey(key))
-                    {
-                        _debounceTimers[key].Dispose();
-                        _debounceTimers.Remove(key);
-                    }
-                };
-                
-                _debounceTimers[key] = timer;
-                timer.Start();
-            }
-        }
-
-        /// <summary>
-        /// Evento do botão Atualizar do painel de estoque
-        /// </summary>
         private void EstoqueRefreshButton_Click(object sender, EventArgs e)
         {
             if (SelectedAccount != null)
             {
+                _lastLoadedUsernameSupabase = "";
                 _ = LoadProductsFromSupabaseAsync(SelectedAccount.Username);
                 AddLog("🔄 Atualizando estoque...");
             }
         }
 
-        /// <summary>
-        /// Atualiza o valor no Supabase (UPSERT - insere ou atualiza)
-        /// Mantido para compatibilidade com o painel de estoque legado
-        /// </summary>
-        private async Task UpdateSheetValueAsync(Classes.SheetProduct product)
-        {
-            try
-            {
-                var startTime = DateTime.Now;
-                
-                // Buscar username da conta selecionada
-                string username = SelectedAccount?.Username ?? "unknown";
-                
-                // Usar o SupabaseManager para fazer UPSERT na tabela inventory
-                // Nota: Para o sistema legado, precisamos criar um item temporário se não existir
-                // Por enquanto, apenas logamos a operação
-                AddLog($"✅ {product.Product}: {product.QuantityInt} (legacy)");
-                
-                // Incrementar contador de requisições
-                IncrementRequestCount();
-            }
-            catch (Exception ex)
-            {
-                AddLogError($"❌ Erro ao salvar: {ex.Message}");
-            }
-        }
+        #endregion
 
         #region Inventory Panel (Supabase)
 
@@ -3323,6 +2809,10 @@ namespace RBX_Alt_Manager
             // Criar o controle de inventário
             _inventoryPanel = new Controls.InventoryPanelControl();
             _inventoryPanel.Dock = DockStyle.Fill;
+
+            // Iniciar serviço de sincronização de inventário
+            Classes.InventorySyncService.Instance.Start();
+            Classes.InventorySyncService.Instance.InventoryEntriesChanged += OnInventoryChangedFromSync;
 
             // Configurar eventos de log
             _inventoryPanel.LogMessage += (s, msg) => AddLog(msg);
@@ -3481,85 +2971,6 @@ namespace RBX_Alt_Manager
 
         #endregion
 
-        #region Game Selector Panel (Legacy - Google Sheets)
-
-        private long _selectedGameGid = 0;
-        private string _selectedGameName = "";
-        private Dictionary<string, int> _productRotationIndex = new Dictionary<string, int>();
-
-        /// <summary>
-        /// Inicializa o painel seletor de jogos (LEGACY - usa Google Sheets)
-        /// </summary>
-        private void InitializeGameSelectorPanel()
-        {
-            // Limpar rotação ao voltar para lista de jogos
-            _productRotationIndex.Clear();
-            
-            // Esconder busca e voltar primeiro
-            GameSelectorSearchTextBox.Visible = false;
-            GameSelectorBackButton.Visible = false;
-            AddRobuxAccountButton.Visible = false;
-            GameSelectorTitleLabel.Text = "JOGOS";
-            
-            // Limpar painéis expandidos
-            _expandedPanels.Clear();;
-            
-            // Suspender layout para evitar flicker
-            GameSelectorButtonsPanel.SuspendLayout();
-            GameSelectorButtonsPanel.Controls.Clear();
-            
-            // Resetar scroll para o topo
-            GameSelectorButtonsPanel.AutoScrollPosition = new System.Drawing.Point(0, 0);
-            
-            // Largura 100% do painel sem espaço na esquerda
-            int buttonWidth = GameSelectorPanel.Width - 12;
-            if (buttonWidth < 100) buttonWidth = 250;
-            
-            // Obter jogos da configuração
-            var gameSheets = Classes.GoogleSheetsIntegration.GameSheets;
-            
-            // Log para debug
-            AddLog($"🎮 Carregando {gameSheets.Count} jogos (largura: {buttonWidth})...");
-            
-            if (gameSheets.Count == 0)
-            {
-                AddLogWarning("⚠️ Nenhum jogo encontrado em games_config.json");
-                // Tentar recarregar
-                Classes.GamesConfig.Reload();
-                gameSheets = Classes.GoogleSheetsIntegration.GameSheets;
-                AddLog($"🔄 Após reload: {gameSheets.Count} jogos");
-            }
-            
-            // Ordenar jogos alfabeticamente pelo nome
-            foreach (var game in gameSheets.OrderBy(g => g.Key))
-            {
-                var btn = new Button
-                {
-                    Text = game.Key.ToUpper(),  // UPPERCASE
-                    Tag = game.Value,
-                    Size = new System.Drawing.Size(buttonWidth, 30),
-                    FlatStyle = FlatStyle.Flat,
-                    Font = new System.Drawing.Font("Segoe UI", 9F),
-                    ForeColor = System.Drawing.Color.Black,
-                    BackColor = System.Drawing.Color.White,
-                    Cursor = Cursors.Hand,
-                    Margin = new Padding(0, 2, 0, 2)
-                };
-                btn.FlatAppearance.BorderSize = 1;
-                btn.Click += GameButton_Click;
-                
-                GameSelectorButtonsPanel.Controls.Add(btn);
-            }
-
-            _currentGameItems.Clear();
-            
-            GameSelectorButtonsPanel.ResumeLayout(true);
-            GameSelectorButtonsPanel.PerformLayout();
-            GameSelectorButtonsPanel.Refresh();
-            
-            AddLog($"✅ {GameSelectorButtonsPanel.Controls.Count} botões criados");
-        }
-
         #region Painel de Amigos
         
         private List<FriendItemData> _friendsList = new List<FriendItemData>();
@@ -3623,8 +3034,8 @@ namespace RBX_Alt_Manager
             if (string.IsNullOrEmpty(savedAddFriendHotkey)) savedAddFriendHotkey = "Ctrl+Shift+V";
             UpdateAddFriendHotkey(savedAddFriendHotkey);
             
-            // Carregar Modo Estoque
-            ModoEstoqueAtivo = General.Get<bool>("ModoEstoque");
+            // Carregar Debug Mode
+            DebugModeAtivo = General.Get<bool>("DebugMode");
             
             AddLog("✅ [FriendsPanel] Painel de amigos configurado no panel4");
             AddLog($"ℹ️ [FriendsPanel] Hotkey Add Friend: {savedAddFriendHotkey}");
@@ -3648,7 +3059,7 @@ namespace RBX_Alt_Manager
             try
             {
                 // Buscar pedidos de amizade pendentes
-                var client = new RestSharp.RestClient("https://friends.roblox.com");
+                var client = FriendsClient;
                 var request = new RestSharp.RestRequest("/v1/my/friends/requests", RestSharp.Method.Get);
                 request.AddHeader("Cookie", $".ROBLOSECURITY={account.SecurityToken}");
 
@@ -3678,7 +3089,7 @@ namespace RBX_Alt_Manager
 
                 // Obter CSRF token
                 string csrfToken = "";
-                var csrfClient = new RestSharp.RestClient("https://friends.roblox.com");
+                var csrfClient = FriendsClient;
                 var csrfRequest = new RestSharp.RestRequest("/v1/users/1/request-friendship", RestSharp.Method.Post);
                 csrfRequest.AddHeader("Cookie", $".ROBLOSECURITY={account.SecurityToken}");
                 var csrfResponse = await csrfClient.ExecuteAsync(csrfRequest);
@@ -3697,7 +3108,7 @@ namespace RBX_Alt_Manager
                         var userId = req["id"]?.Value<long>() ?? 0;
                         if (userId == 0) continue;
 
-                        var acceptClient = new RestSharp.RestClient("https://friends.roblox.com");
+                        var acceptClient = FriendsClient;
                         var acceptRequest = new RestSharp.RestRequest($"/v1/users/{userId}/accept-friend-request", RestSharp.Method.Post);
                         acceptRequest.AddHeader("Cookie", $".ROBLOSECURITY={account.SecurityToken}");
                         acceptRequest.AddHeader("x-csrf-token", csrfToken);
@@ -3793,7 +3204,7 @@ namespace RBX_Alt_Manager
             {
                 // 1. Buscar lista de amigos
                 AddLog($"🔄 [FriendsPanel] Buscando amigos...");
-                var friendsClient = new RestSharp.RestClient("https://friends.roblox.com");
+                var friendsClient = FriendsClient;
                 var friendsRequest = new RestSharp.RestRequest($"/v1/users/{account.UserID}/friends", RestSharp.Method.Get);
                 friendsRequest.AddHeader("Cookie", $".ROBLOSECURITY={account.SecurityToken}");
 
@@ -3842,7 +3253,7 @@ namespace RBX_Alt_Manager
                 AddLog($"🔄 [FriendsPanel] IDs extraídos: {friendIds.Count}");
 
                 // 2. Buscar presença
-                var presenceClient = new RestSharp.RestClient("https://presence.roblox.com");
+                var presenceClient = PresenceClient;
                 var presenceRequest = new RestSharp.RestRequest("/v1/presence/users", RestSharp.Method.Post);
                 presenceRequest.AddHeader("Cookie", $".ROBLOSECURITY={account.SecurityToken}");
                 presenceRequest.AddHeader("Content-Type", "application/json");
@@ -3854,7 +3265,7 @@ namespace RBX_Alt_Manager
                     : null;
 
                 // 3. Buscar usernames
-                var usersClient = new RestSharp.RestClient("https://users.roblox.com");
+                var usersClient = UsersClient;
                 var usersRequest = new RestSharp.RestRequest("/v1/users", RestSharp.Method.Post);
                 usersRequest.AddHeader("Content-Type", "application/json");
                 usersRequest.AddJsonBody(new { userIds = friendIds, excludeBannedUsers = false });
@@ -4145,7 +3556,7 @@ namespace RBX_Alt_Manager
 
             try
             {
-                var client = new RestSharp.RestClient("https://users.roblox.com");
+                var client = UsersClient;
                 var request = new RestSharp.RestRequest("/v1/usernames/users", RestSharp.Method.Post);
                 request.AddHeader("Content-Type", "application/json");
                 request.AddJsonBody(new { usernames = new[] { username }, excludeBannedUsers = false });
@@ -4324,1028 +3735,6 @@ namespace RBX_Alt_Manager
 
         #endregion
 
-        /// <summary>
-        /// Evento ao clicar em um jogo
-        /// </summary>
-        private async void GameButton_Click(object sender, EventArgs e)
-        {
-            var btn = sender as Button;
-            if (btn == null) return;
-
-            _selectedGameGid = (long)btn.Tag;
-            _selectedGameName = btn.Text.ToUpper();
-
-            // Mostrar itens do jogo
-            await ShowGameItemsAsync(_selectedGameGid, _selectedGameName);
-        }
-
-        /// <summary>
-        /// Mostra os itens disponíveis de um jogo
-        /// </summary>
-        private async Task ShowGameItemsAsync(long gid, string gameName)
-        {
-            if (_sheetsIntegration == null)
-                _sheetsIntegration = new Classes.GoogleSheetsIntegration(SHEETS_ID);
-
-            GameSelectorTitleLabel.Text = gameName;
-            GameSelectorButtonsPanel.SuspendLayout();
-            GameSelectorButtonsPanel.Controls.Clear();
-            GameSelectorBackButton.Visible = true;
-            
-            // Mostrar botão ADICIONAR CONTA apenas para ROBUX (GID 660585678)
-            AddRobuxAccountButton.Visible = (gid == 660585678);
-            
-            // Forçar só scroll vertical
-            GameSelectorButtonsPanel.AutoScroll = false;
-            GameSelectorButtonsPanel.HorizontalScroll.Enabled = false;
-            GameSelectorButtonsPanel.HorizontalScroll.Visible = false;
-            GameSelectorButtonsPanel.AutoScroll = true;
-            
-            // Mostrar campo de busca e resetar
-            GameSelectorSearchTextBox.Visible = true;
-            GameSelectorSearchTextBox.Text = "🔍 Buscar...";
-
-            // Buscar produtos com quantidades totais
-            var productsWithQty = await _sheetsIntegration.GetProductsWithTotalQuantityAsync(gid);
-
-            // Guardar no cache para filtrar depois
-            _currentGameItems = productsWithQty;
-
-            // Calcular largura considerando scrollbar vertical (17px)
-            int panelWidth = GameSelectorButtonsPanel.ClientSize.Width - 20;
-            if (panelWidth < 100) panelWidth = GameSelectorPanel.Width - 30;
-
-            if (productsWithQty.Count == 0)
-            {
-                var noItemsLabel = new Label
-                {
-                    Text = "Nenhum item encontrado",
-                    ForeColor = System.Drawing.Color.Gray,
-                    Font = new System.Drawing.Font("Segoe UI", 8F),
-                    Size = new System.Drawing.Size(panelWidth, 30),
-                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter
-                };
-                GameSelectorButtonsPanel.Controls.Add(noItemsLabel);
-                GameSelectorButtonsPanel.ResumeLayout();
-                return;
-            }
-
-            // Exibir todos os itens ordenados alfabeticamente
-            foreach (var item in productsWithQty.OrderBy(x => x.Key))
-            {
-                var itemPanel = CreateGameItemPanel(item.Key, item.Value, panelWidth);
-                GameSelectorButtonsPanel.Controls.Add(itemPanel);
-            }
-
-            GameSelectorButtonsPanel.ResumeLayout();
-            AddLog($"🎮 {gameName}: {productsWithQty.Count} itens");
-        }
-
-        /// <summary>
-        /// Evento ao clicar em um painel de item
-        /// </summary>
-        private async void ItemPanel_Click(object sender, EventArgs e)
-        {
-            Control ctrl = sender as Control;
-            string product = ctrl?.Tag?.ToString();
-            
-            if (string.IsNullOrEmpty(product)) return;
-
-            await SelectAccountWithProduct(product);
-        }
-
-        /// <summary>
-        /// Seleciona uma conta que tem o produto especificado
-        /// </summary>
-        private async Task SelectAccountWithProduct(string product)
-        {
-            if (string.IsNullOrEmpty(product)) return;
-
-            // Buscar contas que têm este produto
-            var accountsWithItem = await _sheetsIntegration.GetAccountsWithItemAsync(_selectedGameGid, product);
-
-            if (accountsWithItem.Count == 0)
-            {
-                AddLogWarning($"⚠️ Nenhuma conta tem '{product}' em estoque");
-                return;
-            }
-
-            // Obter índice atual de rotação para este produto
-            string rotationKey = $"{_selectedGameGid}_{product}";
-            if (!_productRotationIndex.ContainsKey(rotationKey))
-                _productRotationIndex[rotationKey] = 0;
-
-            // Pegar conta baseada no índice de rotação
-            int currentIndex = _productRotationIndex[rotationKey] % accountsWithItem.Count;
-            var selectedProduct = accountsWithItem[currentIndex];
-            
-            // Incrementar índice para próximo clique
-            _productRotationIndex[rotationKey]++;
-            
-            // Encontrar a conta na lista
-            var account = AccountsList?.FirstOrDefault(a => 
-                a.Username.Equals(selectedProduct.Username, StringComparison.OrdinalIgnoreCase));
-
-            if (account != null)
-            {
-                // Selecionar a conta no AccountsView
-                AccountsView.SelectedObject = account;
-                AccountsView.EnsureModelVisible(account);
-                
-                // Se for o jogo ROBUX (GID 660585678) e tiver 2FA Secret, preencher automaticamente
-                if (_selectedGameGid == 660585678 && !string.IsNullOrEmpty(selectedProduct.TwoFASecret))
-                {
-                    TwoFASecretTextBox.Text = selectedProduct.TwoFASecret;
-                    AddLog($"🔐 2FA Secret carregado para {account.Username}");
-                }
-                
-                AddLog($"✅ Selecionado: {account.Username} ({product}: {selectedProduct.QuantityInt}) [{currentIndex + 1}/{accountsWithItem.Count}]");
-            }
-            else
-            {
-                // Tentar adicionar a conta automaticamente usando o cookie da planilha
-                if (!string.IsNullOrEmpty(selectedProduct.Cookie))
-                {
-                    AddLog($"🔄 Adicionando conta '{selectedProduct.Username}' automaticamente...");
-                    
-                    Account newAccount = AddAccount(selectedProduct.Cookie);
-                    
-                    if (newAccount != null)
-                    {
-                        AddLogSuccess($"✅ Conta '{newAccount.Username}' adicionada!");
-                        
-                        // Selecionar a conta recém adicionada
-                        AccountsView.SelectedObject = newAccount;
-                        AccountsView.EnsureModelVisible(newAccount);
-                        
-                        // Se for o jogo ROBUX (GID 660585678) e tiver 2FA Secret, preencher automaticamente
-                        if (_selectedGameGid == 660585678 && !string.IsNullOrEmpty(selectedProduct.TwoFASecret))
-                        {
-                            TwoFASecretTextBox.Text = selectedProduct.TwoFASecret;
-                            AddLog($"🔐 2FA Secret carregado para {newAccount.Username}");
-                        }
-                        
-                        AddLog($"✅ Selecionado: {newAccount.Username} ({product}: {selectedProduct.QuantityInt}) [{currentIndex + 1}/{accountsWithItem.Count}]");
-                    }
-                    else
-                    {
-                        AddLogWarning($"⚠️ Falha ao adicionar conta '{selectedProduct.Username}'");
-                    }
-                }
-                else
-                {
-                    AddLogWarning($"⚠️ Conta '{selectedProduct.Username}' não encontrada e sem cookie na planilha");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Botão Voltar - retorna à lista de jogos
-        /// </summary>
-        private void GameSelectorBackButton_Click(object sender, EventArgs e)
-        {
-            InitializeGameSelectorPanel();
-        }
-
-        /// <summary>
-        /// Botão ADICIONAR CONTA - adiciona a conta selecionada na planilha ROBUX
-        /// </summary>
-        private async void AddRobuxAccountButton_Click(object sender, EventArgs e)
-        {
-            if (SelectedAccount == null)
-            {
-                MessageBox.Show("Selecione uma conta primeiro!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            // Verificar se a conta já existe na planilha
-            var existingAccounts = await _sheetsIntegration.GetAccountsWithItemAsync(660585678, "ROBUX");
-            var accountExists = existingAccounts.Any(a => 
-                a.Username.Equals(SelectedAccount.Username, StringComparison.OrdinalIgnoreCase));
-            
-            if (accountExists)
-            {
-                MessageBox.Show($"A conta '{SelectedAccount.Username}' já existe na planilha!", 
-                    "Conta já existe", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            // Pedir 2FA Secret
-            string twoFASecret = "";
-            using (var inputForm = new Form())
-            {
-                inputForm.Text = "2FA Secret";
-                inputForm.Size = new System.Drawing.Size(350, 150);
-                inputForm.StartPosition = FormStartPosition.CenterParent;
-                inputForm.FormBorderStyle = FormBorderStyle.FixedDialog;
-                inputForm.MaximizeBox = false;
-                inputForm.MinimizeBox = false;
-                inputForm.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
-
-                var label = new Label
-                {
-                    Text = "Insira o 2FA Secret (opcional):",
-                    Location = new System.Drawing.Point(10, 15),
-                    Size = new System.Drawing.Size(320, 20),
-                    ForeColor = System.Drawing.Color.White
-                };
-
-                var textBox = new TextBox
-                {
-                    Location = new System.Drawing.Point(10, 40),
-                    Size = new System.Drawing.Size(310, 25),
-                    BackColor = System.Drawing.Color.FromArgb(50, 50, 50),
-                    ForeColor = System.Drawing.Color.White
-                };
-
-                var okButton = new Button
-                {
-                    Text = "ADICIONAR",
-                    Location = new System.Drawing.Point(120, 75),
-                    Size = new System.Drawing.Size(100, 28),
-                    DialogResult = DialogResult.OK,
-                    FlatStyle = FlatStyle.Flat,
-                    ForeColor = System.Drawing.Color.LimeGreen
-                };
-
-                inputForm.Controls.AddRange(new Control[] { label, textBox, okButton });
-                inputForm.AcceptButton = okButton;
-
-                if (inputForm.ShowDialog() == DialogResult.OK)
-                {
-                    twoFASecret = textBox.Text.Trim();
-                }
-                else
-                {
-                    return; // Cancelou
-                }
-            }
-
-            AddRobuxAccountButton.Enabled = false;
-            AddRobuxAccountButton.Text = "ADICIONANDO...";
-
-            try
-            {
-                // Buscar quantidade de Robux via API
-                long robuxAmount = await GetAccountRobuxAsync(SelectedAccount);
-                
-                // Adicionar na planilha
-                await AddAccountToRobuxSheetAsync(
-                    SelectedAccount.SecurityToken,
-                    SelectedAccount.Username,
-                    robuxAmount,
-                    twoFASecret
-                );
-
-                AddLogSuccess($"✅ Conta '{SelectedAccount.Username}' adicionada à planilha ROBUX ({robuxAmount} R$)");
-                
-                // Atualizar campo 2FA se preenchido
-                if (!string.IsNullOrEmpty(twoFASecret))
-                {
-                    TwoFASecretTextBox.Text = twoFASecret;
-                }
-
-                // Recarregar itens do jogo
-                await ShowGameItemsAsync(660585678, "ROBUX");
-            }
-            catch (Exception ex)
-            {
-                AddLogError($"❌ Erro ao adicionar conta: {ex.Message}");
-                MessageBox.Show($"Erro ao adicionar conta:\n{ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                AddRobuxAccountButton.Enabled = true;
-                AddRobuxAccountButton.Text = "ADICIONAR CONTA";
-            }
-        }
-
-        /// <summary>
-        /// Busca a quantidade de Robux de uma conta via API do Roblox
-        /// </summary>
-        private async Task<long> GetAccountRobuxAsync(Account account)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(account.SecurityToken))
-                    return 0;
-
-                string cookie = account.SecurityToken;
-                long userId = account.UserID;
-
-                var handler = new System.Net.Http.HttpClientHandler
-                {
-                    UseCookies = true,
-                    CookieContainer = new System.Net.CookieContainer(),
-                    UseProxy = false
-                };
-                handler.CookieContainer.Add(new Uri("https://economy.roblox.com"), new System.Net.Cookie(".ROBLOSECURITY", cookie, "/", ".roblox.com"));
-                
-                using (var client = new System.Net.Http.HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) })
-                {
-                    client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
-                    
-                    // Se não tem UserId, buscar rapidamente
-                    if (userId == 0)
-                    {
-                        var userResponse = await client.PostAsync(
-                            "https://users.roblox.com/v1/usernames/users",
-                            new System.Net.Http.StringContent(
-                                $"{{\"usernames\":[\"{account.Username}\"]}}",
-                                System.Text.Encoding.UTF8,
-                                "application/json"
-                            )
-                        );
-                        var userJson = await userResponse.Content.ReadAsStringAsync();
-                        var userMatch = System.Text.RegularExpressions.Regex.Match(userJson, "\"id\":(\\d+)");
-                        if (userMatch.Success)
-                            long.TryParse(userMatch.Groups[1].Value, out userId);
-                    }
-
-                    if (userId == 0) return 0;
-
-                    // Buscar Robux direto
-                    var robuxResponse = await client.GetAsync($"https://economy.roblox.com/v1/users/{userId}/currency");
-                    var robuxJson = await robuxResponse.Content.ReadAsStringAsync();
-                    
-                    var robuxMatch = System.Text.RegularExpressions.Regex.Match(robuxJson, "\"robux\":(\\d+)");
-                    if (robuxMatch.Success)
-                    {
-                        long.TryParse(robuxMatch.Groups[1].Value, out long robux);
-                        return robux;
-                    }
-                    
-                    return 0;
-                }
-            }
-            catch
-            {
-                return 0;
-            }
-        }
-
-        /// <summary>
-        /// Adiciona uma conta na planilha do Google Sheets na aba Robux
-        /// </summary>
-        private async Task AddAccountToRobuxSheetAsync(string cookie, string username, long robuxAmount, string twoFASecret)
-        {
-            if (string.IsNullOrEmpty(APPS_SCRIPT_URL))
-                throw new Exception("Apps Script URL não configurado");
-
-            string url = $"{APPS_SCRIPT_URL}?action=addRobuxAccount" +
-                $"&sheetName=Robux" +
-                $"&cookie={Uri.EscapeDataString(cookie)}" +
-                $"&username={Uri.EscapeDataString(username)}" +
-                $"&robux={robuxAmount}" +
-                $"&twofa={Uri.EscapeDataString(twoFASecret)}";
-
-            AddLog($"📤 Enviando para planilha...");
-            var response = await _sheetHttpClient.GetStringAsync(url);
-            AddLog($"📥 Resposta: {response}");
-            
-            if (!response.Contains("\"success\":true"))
-            {
-                throw new Exception($"Resposta do servidor: {response}");
-            }
-            
-            // Invalidar cache para forçar recarregar
-            _sheetsIntegration?.InvalidateCache(660585678);
-        }
-
-        // Cache dos itens para filtrar
-        private Dictionary<string, int> _currentGameItems = new Dictionary<string, int>();
-
-        /// <summary>
-        /// Placeholder do campo de busca - ao entrar
-        /// </summary>
-        private void GameSelectorSearchTextBox_Enter(object sender, EventArgs e)
-        {
-            if (GameSelectorSearchTextBox.Text == "🔍 Buscar...")
-            {
-                GameSelectorSearchTextBox.Text = "";
-            }
-        }
-
-        /// <summary>
-        /// Placeholder do campo de busca - ao sair
-        /// </summary>
-        private void GameSelectorSearchTextBox_Leave(object sender, EventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(GameSelectorSearchTextBox.Text))
-            {
-                GameSelectorSearchTextBox.Text = "🔍 Buscar...";
-            }
-        }
-
-        /// <summary>
-        /// Filtra os itens conforme digita
-        /// </summary>
-        private void GameSelectorSearchTextBox_TextChanged(object sender, EventArgs e)
-        {
-            string searchText = GameSelectorSearchTextBox.Text;
-            
-            // Ignorar placeholder
-            if (searchText == "🔍 Buscar..." || _currentGameItems.Count == 0)
-                return;
-
-            FilterGameItems(searchText);
-        }
-
-        /// <summary>
-        /// Filtra e exibe os itens que correspondem à busca
-        /// </summary>
-        private void FilterGameItems(string searchText)
-        {
-            GameSelectorButtonsPanel.SuspendLayout();
-            GameSelectorButtonsPanel.Controls.Clear();
-
-            // Calcular largura considerando scrollbar vertical
-            int panelWidth = GameSelectorButtonsPanel.ClientSize.Width - 20;
-            if (panelWidth < 100) panelWidth = GameSelectorPanel.Width - 30;
-
-            var filteredItems = string.IsNullOrWhiteSpace(searchText)
-                ? _currentGameItems
-                : _currentGameItems.Where(x => x.Key.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
-                    .ToDictionary(x => x.Key, x => x.Value);
-
-            // Ordenar itens filtrados alfabeticamente
-            foreach (var item in filteredItems.OrderBy(x => x.Key))
-            {
-                var itemPanel = CreateGameItemPanel(item.Key, item.Value, panelWidth);
-                GameSelectorButtonsPanel.Controls.Add(itemPanel);
-            }
-            
-            GameSelectorButtonsPanel.ResumeLayout();
-        }
-
-        /// <summary>
-        /// Cria um painel para um item do jogo
-        /// </summary>
-        private Panel CreateGameItemPanel(string product, int totalQty, int panelWidth = 0)
-        {
-            // Se não passou largura, calcular
-            if (panelWidth <= 0)
-            {
-                panelWidth = GameSelectorPanel.Width - 30;
-                if (panelWidth < 100) panelWidth = 220;
-            }
-
-            var itemPanel = new Panel
-            {
-                Size = new System.Drawing.Size(panelWidth, 22),
-                BackColor = System.Drawing.Color.FromArgb(50, 50, 50),
-                Margin = new Padding(0, 1, 0, 1),
-                Cursor = Cursors.Hand,
-                Tag = product
-            };
-
-            // Seta para expandir (à direita)
-            var arrowLabel = new Label
-            {
-                Text = "▶",
-                Font = new System.Drawing.Font("Segoe UI", 7F),
-                ForeColor = System.Drawing.Color.Gray,
-                Location = new System.Drawing.Point(panelWidth - 18, 3),
-                Size = new System.Drawing.Size(15, 16),
-                TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
-                Tag = product,
-                Cursor = Cursors.Hand
-            };
-            arrowLabel.Click += ArrowLabel_Click;
-
-            // Quantidade (à direita, antes da seta)
-            var qtyLabel = new Label
-            {
-                Text = FormatNumberWithThousands(totalQty),
-                Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold),
-                ForeColor = totalQty > 0 ? System.Drawing.Color.LimeGreen : System.Drawing.Color.Red,
-                Location = new System.Drawing.Point(panelWidth - 85, 2),
-                Size = new System.Drawing.Size(65, 18),
-                TextAlign = System.Drawing.ContentAlignment.MiddleRight,
-                Tag = product
-            };
-
-            // Nome do produto (UPPERCASE)
-            var nameLabel = new Label
-            {
-                Text = product.ToUpper(),
-                Font = new System.Drawing.Font("Segoe UI", 8F),
-                ForeColor = System.Drawing.Color.White,
-                Location = new System.Drawing.Point(3, 2),
-                Size = new System.Drawing.Size(panelWidth - 90, 18),
-                AutoEllipsis = true,
-                Tag = product
-            };
-
-            itemPanel.Controls.Add(nameLabel);
-            itemPanel.Controls.Add(qtyLabel);
-            itemPanel.Controls.Add(arrowLabel);
-
-            itemPanel.Click += ItemPanel_Click;
-            nameLabel.Click += ItemPanel_Click;
-            qtyLabel.Click += ItemPanel_Click;
-
-            return itemPanel;
-        }
-
-        // Dicionário para controlar painéis expandidos
-        private Dictionary<string, Panel> _expandedPanels = new Dictionary<string, Panel>();
-
-        /// <summary>
-        /// Clique na seta para expandir/colapsar lista de contas
-        /// </summary>
-        private async void ArrowLabel_Click(object sender, EventArgs e)
-        {
-            var arrow = sender as Label;
-            string product = arrow?.Tag?.ToString();
-            if (string.IsNullOrEmpty(product)) return;
-
-            var itemPanel = arrow.Parent as Panel;
-            if (itemPanel == null) return;
-
-            string expandKey = $"{_selectedGameGid}_{product}";
-
-            // Se já está expandido, colapsar
-            if (_expandedPanels.ContainsKey(expandKey))
-            {
-                var existingPanel = _expandedPanels[expandKey];
-                int index = GameSelectorButtonsPanel.Controls.IndexOf(existingPanel);
-                if (index >= 0)
-                {
-                    GameSelectorButtonsPanel.Controls.Remove(existingPanel);
-                    existingPanel.Dispose();
-                }
-                _expandedPanels.Remove(expandKey);
-                arrow.Text = "▶";
-                arrow.ForeColor = System.Drawing.Color.Gray;
-                return;
-            }
-
-            // Expandir - buscar TODAS as contas com este item (incluindo 0)
-            var accountsWithItem = await _sheetsIntegration.GetAllAccountsWithItemAsync(_selectedGameGid, product);
-
-            if (accountsWithItem.Count == 0)
-            {
-                AddLogWarning($"⚠️ Nenhuma conta encontrada para '{product}'");
-                return;
-            }
-
-            // Criar painel expandido com lista de contas
-            int panelWidth = itemPanel.Width;
-            int accountHeight = 20;
-            int addButtonHeight = ModoEstoqueAtivo ? 22 : 0; // Altura do botão Add (só se Modo Estoque ativo)
-            int expandedHeight = accountsWithItem.Count * accountHeight + addButtonHeight + 6; // +6 para espaçamento
-
-            var expandedPanel = new Panel
-            {
-                Size = new System.Drawing.Size(panelWidth, expandedHeight),
-                BackColor = System.Drawing.Color.FromArgb(35, 35, 35),
-                Margin = new Padding(0, 0, 0, 2),
-                AutoScroll = false
-            };
-
-            int yPos = 2;
-            foreach (var acc in accountsWithItem)
-            {
-                var accPanel = new Panel
-                {
-                    Size = new System.Drawing.Size(panelWidth - 6, accountHeight - 2),
-                    BackColor = System.Drawing.Color.FromArgb(45, 45, 45),
-                    Location = new System.Drawing.Point(3, yPos),
-                    Cursor = Cursors.Hand,
-                    Tag = acc.Username
-                };
-
-                var accNameLabel = new Label
-                {
-                    Text = acc.Username,
-                    Font = new System.Drawing.Font("Segoe UI", 7F),
-                    ForeColor = System.Drawing.Color.Cyan,
-                    Location = new System.Drawing.Point(5, 2),
-                    Size = new System.Drawing.Size(panelWidth - 80, 14),
-                    AutoEllipsis = true,
-                    Tag = acc.Username,
-                    Cursor = Cursors.Hand
-                };
-
-                var accQtyLabel = new Label
-                {
-                    Text = FormatNumberWithThousands(acc.QuantityInt),
-                    Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold),
-                    ForeColor = acc.QuantityInt > 0 ? System.Drawing.Color.LimeGreen : System.Drawing.Color.Red,
-                    Location = new System.Drawing.Point(panelWidth - 70, 2),
-                    Size = new System.Drawing.Size(60, 14),
-                    TextAlign = System.Drawing.ContentAlignment.MiddleRight,
-                    Tag = acc.Username,
-                    Cursor = Cursors.Hand
-                };
-
-                // Ao clicar, seleciona a conta específica
-                var currentAcc = acc; // Capturar para closure
-                EventHandler selectAccount = (s, ev) =>
-                {
-                    SelectAccountByUsername(currentAcc, product);
-                };
-
-                accPanel.Click += selectAccount;
-                accNameLabel.Click += selectAccount;
-                accQtyLabel.Click += selectAccount;
-
-                accPanel.Controls.Add(accNameLabel);
-                accPanel.Controls.Add(accQtyLabel);
-                expandedPanel.Controls.Add(accPanel);
-
-                yPos += accountHeight;
-            }
-
-            // Adicionar botão "Add" no final da lista (APENAS se Modo Estoque ativo)
-            if (ModoEstoqueAtivo)
-            {
-                var addButton = new Button
-                {
-                    Text = "+ Add",
-                    Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold),
-                    ForeColor = System.Drawing.Color.White,
-                    BackColor = System.Drawing.Color.FromArgb(0, 100, 0),
-                    FlatStyle = FlatStyle.Flat,
-                    Location = new System.Drawing.Point(3, yPos + 2),
-                    Size = new System.Drawing.Size(panelWidth - 6, addButtonHeight - 4),
-                    Cursor = Cursors.Hand,
-                    Tag = new { Product = product, Gid = _selectedGameGid }
-                };
-                addButton.FlatAppearance.BorderSize = 0;
-                addButton.Click += AddEmptyAccountToItem_Click;
-                expandedPanel.Controls.Add(addButton);
-            }
-
-            // Inserir painel expandido logo após o item
-            int itemIndex = GameSelectorButtonsPanel.Controls.IndexOf(itemPanel);
-            GameSelectorButtonsPanel.Controls.Add(expandedPanel);
-            GameSelectorButtonsPanel.Controls.SetChildIndex(expandedPanel, itemIndex + 1);
-
-            _expandedPanels[expandKey] = expandedPanel;
-            arrow.Text = "▼";
-            arrow.ForeColor = System.Drawing.Color.White;
-        }
-
-        /// <summary>
-        /// Adiciona uma conta vazia à lista de um item (busca automaticamente uma conta disponível)
-        /// Prioridade: 1) Conta vazia, 2) Conta com item zerado, 3) Conta sem esse item
-        /// </summary>
-        private async void AddEmptyAccountToItem_Click(object sender, EventArgs e)
-        {
-            var button = sender as Button;
-            if (button?.Tag == null) return;
-
-            dynamic tagData = button.Tag;
-            string product = tagData.Product;
-            long gid = tagData.Gid;
-
-            // Buscar nome do jogo pelo GID
-            string gameName = Classes.GoogleSheetsIntegration.GameSheets
-                .FirstOrDefault(x => x.Value == gid).Key ?? "JOGO";
-
-            // Desabilitar botão durante processamento
-            button.Enabled = false;
-            button.Text = "...";
-
-            try
-            {
-                // Buscar a melhor conta disponível com priorização
-                var (username, existingProduct, priority) = await _sheetsIntegration.GetBestAvailableAccountAsync(gid, product);
-
-                if (string.IsNullOrEmpty(username))
-                {
-                    AddLogWarning($"⚠️ Todas as contas de '{gameName}' já têm o item '{product}'");
-                    return;
-                }
-
-                string priorityText = priority switch
-                {
-                    1 => "conta vazia",
-                    2 => "reutilizando linha",
-                    3 => "nova linha",
-                    _ => ""
-                };
-
-                if (existingProduct != null && priority <= 2)
-                {
-                    // Reutilizar linha existente - apenas mudar o nome do produto
-                    await UpdateSheetProductNameAsync(gid, existingProduct.RowIndex, product);
-                    AddLog($"✅ '{username}' → '{product}' ({priorityText}, linha {existingProduct.RowIndex})");
-                }
-                else
-                {
-                    // Adicionar nova linha
-                    await AddAccountToSheetAsync(gid, username, product);
-                    AddLog($"✅ '{username}' adicionada ao '{product}' ({priorityText})");
-                }
-
-                // Invalidar cache e recarregar
-                _sheetsIntegration?.InvalidateCache(gid);
-                
-                if (_selectedGameGid == gid)
-                {
-                    string gameNameForRefresh = Classes.GoogleSheetsIntegration.GameSheets
-                        .FirstOrDefault(x => x.Value == gid).Key ?? "JOGO";
-                    await ShowGameItemsAsync(gid, gameNameForRefresh);
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLogError($"❌ Erro ao adicionar conta: {ex.Message}");
-            }
-            finally
-            {
-                // Reabilitar botão
-                button.Text = "+ Add";
-                button.Enabled = true;
-            }
-        }
-
-        /// <summary>
-        /// Atualiza o nome do produto em uma linha existente da planilha
-        /// </summary>
-        private async Task UpdateSheetProductNameAsync(long gid, int rowIndex, string newProduct)
-        {
-            string appsScriptUrl = APPS_SCRIPT_URL;
-            if (string.IsNullOrEmpty(appsScriptUrl))
-            {
-                AddLogError("❌ URL do Apps Script não configurada");
-                return;
-            }
-
-            try
-            {
-                // Chamar Apps Script com action=rename para mudar o nome do produto
-                string url = $"{appsScriptUrl}?action=rename&gid={gid}&row={rowIndex}&product={Uri.EscapeDataString(newProduct)}";
-                
-                using (var client = new System.Net.Http.HttpClient() { Timeout = TimeSpan.FromSeconds(10) })
-                {
-                    var response = await client.GetStringAsync(url);
-                    
-                    if (!response.Contains("\"success\":true"))
-                    {
-                        AddLogWarning($"⚠️ Resposta: {response}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLogError($"❌ Erro ao renomear produto: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Adiciona uma conta à planilha via Apps Script
-        /// </summary>
-        private async Task AddAccountToSheetAsync(long gid, string username, string product)
-        {
-            string appsScriptUrl = APPS_SCRIPT_URL;
-            if (string.IsNullOrEmpty(appsScriptUrl))
-            {
-                AddLogError("❌ URL do Apps Script não configurada");
-                return;
-            }
-
-            try
-            {
-                // Chamar Apps Script com action=add
-                string url = $"{appsScriptUrl}?action=add&gid={gid}&username={Uri.EscapeDataString(username)}&product={Uri.EscapeDataString(product)}&value=0";
-                
-                using (var client = new System.Net.Http.HttpClient() { Timeout = TimeSpan.FromSeconds(10) })
-                {
-                    var response = await client.GetStringAsync(url);
-                    
-                    if (response.Contains("\"success\":true"))
-                    {
-                        AddLog($"✅ Conta '{username}' adicionada ao item '{product}'");
-                        
-                        // Invalidar cache e recarregar
-                        _sheetsIntegration?.InvalidateCache(gid);
-                        
-                        // Atualizar a lista do jogo atual
-                        if (_selectedGameGid == gid)
-                        {
-                            string gameName = Classes.GoogleSheetsIntegration.GameSheets
-                                .FirstOrDefault(x => x.Value == gid).Key ?? "JOGO";
-                            await ShowGameItemsAsync(gid, gameName);
-                        }
-                    }
-                    else
-                    {
-                        AddLogError($"❌ Erro ao adicionar conta: {response}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLogError($"❌ Erro ao adicionar conta: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Seleciona uma conta específica pelo SheetProduct
-        /// </summary>
-        private void SelectAccountByUsername(Classes.SheetProduct sheetProduct, string product)
-        {
-            if (sheetProduct == null || string.IsNullOrEmpty(sheetProduct.Username)) return;
-
-            var account = AccountsList?.FirstOrDefault(a => 
-                a.Username.Equals(sheetProduct.Username, StringComparison.OrdinalIgnoreCase));
-
-            if (account != null)
-            {
-                AccountsView.SelectedObject = account;
-                AccountsView.EnsureModelVisible(account);
-                
-                // Se for o jogo ROBUX (GID 660585678) e tiver 2FA Secret, preencher automaticamente
-                if (_selectedGameGid == 660585678 && !string.IsNullOrEmpty(sheetProduct.TwoFASecret))
-                {
-                    TwoFASecretTextBox.Text = sheetProduct.TwoFASecret;
-                    AddLog($"🔐 2FA Secret carregado para {account.Username}");
-                }
-                
-                AddLog($"✅ Selecionado: {account.Username} ({product}: {sheetProduct.QuantityInt})");
-            }
-            else
-            {
-                // Tentar adicionar a conta automaticamente usando o cookie da planilha
-                if (!string.IsNullOrEmpty(sheetProduct.Cookie))
-                {
-                    AddLog($"🔄 Adicionando conta '{sheetProduct.Username}' automaticamente...");
-                    
-                    Account newAccount = AddAccount(sheetProduct.Cookie);
-                    
-                    if (newAccount != null)
-                    {
-                        AddLogSuccess($"✅ Conta '{newAccount.Username}' adicionada!");
-                        
-                        // Selecionar a conta recém adicionada
-                        AccountsView.SelectedObject = newAccount;
-                        AccountsView.EnsureModelVisible(newAccount);
-                        
-                        // Se for o jogo ROBUX (GID 660585678) e tiver 2FA Secret, preencher automaticamente
-                        if (_selectedGameGid == 660585678 && !string.IsNullOrEmpty(sheetProduct.TwoFASecret))
-                        {
-                            TwoFASecretTextBox.Text = sheetProduct.TwoFASecret;
-                            AddLog($"🔐 2FA Secret carregado para {newAccount.Username}");
-                        }
-                        
-                        AddLog($"✅ Selecionado: {newAccount.Username} ({product}: {sheetProduct.QuantityInt})");
-                    }
-                    else
-                    {
-                        AddLogWarning($"⚠️ Falha ao adicionar conta '{sheetProduct.Username}'");
-                    }
-                }
-                else
-                {
-                    AddLogWarning($"⚠️ Conta '{sheetProduct.Username}' não encontrada e sem cookie na planilha");
-                }
-            }
-        }
-
-        #endregion
-
-        #region Pusher Integration
-
-        /// <summary>
-        /// Inicializa a conexão WebSocket com o Pusher para receber atualizações em tempo real
-        /// </summary>
-        private void InitializePusher()
-        {
-            try
-            {
-                string pusherUrl = $"wss://ws-{PUSHER_CLUSTER}.pusher.com/app/{PUSHER_KEY}?protocol=7&client=csharp&version=1.0";
-                
-                _pusherSocket = new WebSocket(pusherUrl);
-                
-                _pusherSocket.OnOpen += (sender, e) =>
-                {
-                    _pusherConnected = true;
-                    AddLog("🟢 Pusher conectado (tempo real ativo)");
-                    
-                    // Inscrever no canal de atualizações da planilha
-                    var subscribeMsg = new
-                    {
-                        @event = "pusher:subscribe",
-                        data = new { channel = "sheets-updates" }
-                    };
-                    _pusherSocket.Send(JsonConvert.SerializeObject(subscribeMsg));
-                };
-
-                _pusherSocket.OnMessage += (sender, e) =>
-                {
-                    try
-                    {
-                        HandlePusherMessage(e.Data);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[Pusher] Erro ao processar mensagem: {ex.Message}");
-                    }
-                };
-
-                _pusherSocket.OnClose += (sender, e) =>
-                {
-                    _pusherConnected = false;
-                    AddLogWarning("🔴 Pusher desconectado");
-                    
-                    // Reconectar após 5 segundos
-                    Task.Delay(5000).ContinueWith(_ =>
-                    {
-                        if (!_pusherConnected && _pusherSocket != null)
-                        {
-                            try { _pusherSocket.Connect(); }
-                            catch { }
-                        }
-                    });
-                };
-
-                _pusherSocket.OnError += (sender, e) =>
-                {
-                    Debug.WriteLine($"[Pusher] Erro: {e.Message}");
-                };
-
-                _pusherSocket.ConnectAsync();
-            }
-            catch (Exception ex)
-            {
-                AddLogError($"[Pusher] Erro ao inicializar: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Processa mensagens recebidas do Pusher
-        /// </summary>
-        private DateTime _lastPusherUpdate = DateTime.MinValue;
-        
-        private void HandlePusherMessage(string data)
-        {
-            try
-            {
-                var message = JObject.Parse(data);
-                string eventName = message["event"]?.ToString();
-
-                if (eventName == "sheet-updated")
-                {
-                    // Debounce: ignorar atualizações muito frequentes (500ms)
-                    if ((DateTime.Now - _lastPusherUpdate).TotalMilliseconds < 500)
-                    {
-                        return;
-                    }
-                    _lastPusherUpdate = DateTime.Now;
-
-                    var eventData = JObject.Parse(message["data"]?.ToString() ?? "{}");
-                    
-                    string username = eventData["username"]?.ToString();
-                    string product = eventData["product"]?.ToString();
-                    int newValue = eventData["value"]?.ToObject<int>() ?? 0;
-                    long gid = eventData["gid"]?.ToObject<long>() ?? 0;
-                    int row = eventData["row"]?.ToObject<int>() ?? 0;
-
-                    // Atualizar na thread da UI
-                    this.Invoke(new Action(() =>
-                    {
-                        // Atualizar apenas o cache local (sem recarregar UI)
-                        _sheetsIntegration?.InvalidateCache();
-
-                        // NÃO recarregar o painel de estoque - isso causa conflito com edições locais
-                        // O usuário pode clicar em "Atualizar" se quiser sincronizar
-                        
-                        AddLog($"📡 Atualização externa: {product} = {newValue}");
-                    }));
-                }
-                else if (eventName == "pusher:subscription_succeeded")
-                {
-                    AddLog("📡 Inscrito no canal de atualizações");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Pusher] Erro ao processar: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Desconecta do Pusher ao fechar o aplicativo
-        /// </summary>
-        private void DisconnectPusher()
-        {
-            try
-            {
-                if (_pusherSocket != null && _pusherConnected)
-                {
-                    _pusherSocket.Close();
-                    _pusherSocket = null;
-                }
-            }
-            catch { }
-        }
-
-        #endregion
-
 
         private void SetDescription_Click(object sender, EventArgs e)
         {
@@ -5475,6 +3864,11 @@ namespace RBX_Alt_Manager
                 }
                 else if (SelectedAccount != null)
                 {
+                    if (DebugModeAtivo) AddLog($"🔍 [Debug] Lançando conta única: {SelectedAccount.Username}");
+
+                    // Registrar acesso ANTES de lançar (JoinServer aguarda o jogo fechar)
+                    _ = Classes.SupabaseManager.Instance.LogAccountAccessAsync(SelectedAccount.Username, placeId);
+
                     string res = await SelectedAccount.JoinServer(placeId, jobId, false, vipServer);
 
                     if (!res.Contains("Success"))
@@ -6067,6 +4461,130 @@ namespace RBX_Alt_Manager
             form.ShowDialog();
         }
 
+        private async void viewHistoryToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (SelectedAccount == null)
+            {
+                MessageBox.Show("Selecione uma conta primeiro!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var username = SelectedAccount.Username;
+
+            var form = new Form
+            {
+                Text = $"Histórico - {username}",
+                Size = new Size(750, 500),
+                MinimumSize = new Size(600, 350),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.Sizable,
+                MaximizeBox = true,
+                MinimizeBox = false,
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.White
+            };
+
+            var loadingLabel = new Label
+            {
+                Text = "Carregando histórico...",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.Gray,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            form.Controls.Add(loadingLabel);
+            form.Show();
+
+            try
+            {
+                var history = await Classes.SupabaseManager.Instance.GetAccountHistoryAsync(username);
+                form.Controls.Remove(loadingLabel);
+                loadingLabel.Dispose();
+
+                var listView = new ListView
+                {
+                    Dock = DockStyle.Fill,
+                    View = View.Details,
+                    FullRowSelect = true,
+                    GridLines = false,
+                    BackColor = Color.FromArgb(30, 30, 30),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 9F),
+                    BorderStyle = BorderStyle.None,
+                    HeaderStyle = ColumnHeaderStyle.Nonclickable
+                };
+
+                listView.Columns.Add("Usuário", 150);
+                listView.Columns.Add("Jogo", 220);
+                listView.Columns.Add("PlaceID", 120);
+                listView.Columns.Add("Data/Hora", 160);
+
+                if (history.Count == 0)
+                {
+                    var emptyLabel = new Label
+                    {
+                        Text = "Nenhum registro de acesso encontrado.",
+                        Font = new Font("Segoe UI", 9F),
+                        ForeColor = Color.Gray,
+                        Dock = DockStyle.Fill,
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    form.Controls.Add(emptyLabel);
+                }
+                else
+                {
+                    foreach (var entry in history)
+                    {
+                        var item = new ListViewItem(entry.UserDisplayName ?? "—");
+                        item.SubItems.Add(entry.GameName ?? "—");
+                        item.SubItems.Add(entry.PlaceId?.ToString() ?? "—");
+                        item.SubItems.Add(entry.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm"));
+                        listView.Items.Add(item);
+                    }
+                    form.Controls.Add(listView);
+                }
+
+                var bottomPanel = new Panel
+                {
+                    Dock = DockStyle.Bottom,
+                    Height = 40,
+                    BackColor = Color.FromArgb(30, 30, 30)
+                };
+
+                var countLabel = new Label
+                {
+                    Text = $"{history.Count} registro(s)",
+                    Font = new Font("Segoe UI", 8F),
+                    ForeColor = Color.Gray,
+                    Location = new System.Drawing.Point(10, 10),
+                    AutoSize = true
+                };
+
+                var closeButton = new Button
+                {
+                    Text = "Fechar",
+                    Font = new Font("Segoe UI", 8.5F),
+                    ForeColor = Color.White,
+                    BackColor = Color.FromArgb(60, 60, 60),
+                    FlatStyle = FlatStyle.Flat,
+                    Size = new Size(80, 28),
+                    Anchor = AnchorStyles.Right,
+                    Location = new System.Drawing.Point(form.ClientSize.Width - 95, 6)
+                };
+                closeButton.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 80);
+                closeButton.Click += (s, ev) => form.Close();
+
+                bottomPanel.Controls.Add(countLabel);
+                bottomPanel.Controls.Add(closeButton);
+                form.Controls.Add(bottomPanel);
+            }
+            catch (Exception ex)
+            {
+                loadingLabel.Text = $"Erro ao carregar histórico: {ex.Message}";
+                loadingLabel.ForeColor = Color.Red;
+            }
+        }
+
         /// <summary>
         /// Converte texto com notação abreviada para número
         /// Ex: "1k" -> 1000, "2m" -> 2000000, "3b" -> 3000000000
@@ -6074,41 +4592,59 @@ namespace RBX_Alt_Manager
         private long ParseAbbreviatedNumber(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return 0;
-            
+
+            string original = text;
             text = text.Trim().ToLower().Replace(".", "").Replace(",", "");
-            
+
             long multiplier = 1;
+            string suffix = "";
             if (text.EndsWith("k"))
             {
                 multiplier = 1_000;
+                suffix = "k";
                 text = text.Substring(0, text.Length - 1);
             }
             else if (text.EndsWith("m"))
             {
                 multiplier = 1_000_000;
+                suffix = "m";
                 text = text.Substring(0, text.Length - 1);
             }
             else if (text.EndsWith("b"))
             {
                 multiplier = 1_000_000_000;
+                suffix = "b";
                 text = text.Substring(0, text.Length - 1);
             }
             else if (text.EndsWith("t"))
             {
                 multiplier = 1_000_000_000_000;
+                suffix = "t";
                 text = text.Substring(0, text.Length - 1);
             }
-            
-            if (decimal.TryParse(text, System.Globalization.NumberStyles.Any, 
+
+            if (DebugModeAtivo)
+                AddLog($"[DEBUG] AM.Parse: original='{original}', cleaned='{text}', suffix='{suffix}', multiplier={multiplier}");
+
+            if (decimal.TryParse(text, System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out decimal decimalValue))
             {
-                return (long)(decimalValue * multiplier);
+                long result = (long)(decimalValue * multiplier);
+                if (DebugModeAtivo)
+                    AddLog($"[DEBUG] AM.Parse: decimal OK → {decimalValue} * {multiplier} = {result}");
+                return result;
             }
-            
+
             if (long.TryParse(text, out long longValue))
             {
-                return longValue * multiplier;
+                long result = longValue * multiplier;
+                if (DebugModeAtivo)
+                    AddLog($"[DEBUG] AM.Parse: long OK → {longValue} * {multiplier} = {result}");
+                return result;
             }
+
+            if (DebugModeAtivo)
+                AddLog($"[DEBUG] AM.Parse: FALHOU ao parsear '{text}' (original: '{original}')");
             
             return 0;
         }
@@ -6127,34 +4663,235 @@ namespace RBX_Alt_Manager
 
         private async void removeAllFriendsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (SelectedAccount == null)
+            var selectedAccounts = AccountsView.SelectedObjects.Cast<Account>().ToList();
+
+            if (selectedAccounts.Count == 0)
             {
                 MessageBox.Show("Selecione uma conta primeiro!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            DialogResult confirm = MessageBox.Show(
-                $"Tem certeza que deseja REMOVER TODAS AS AMIZADES da conta '{SelectedAccount.Username}'?\n\nEssa ação não pode ser desfeita!",
-                "Confirmar Remoção de Amizades",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning
-            );
+            string msg = selectedAccounts.Count == 1
+                ? $"Tem certeza que deseja REMOVER TODAS AS AMIZADES da conta '{selectedAccounts[0].Username}'?\n\nEssa ação não pode ser desfeita!"
+                : $"Tem certeza que deseja REMOVER TODAS AS AMIZADES de {selectedAccounts.Count} contas?\n\nEssa ação não pode ser desfeita!";
 
+            DialogResult confirm = MessageBox.Show(msg, "Confirmar Remoção de Amizades", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (confirm != DialogResult.Yes) return;
 
-            try
+            int totalRemoved = 0;
+            int accountsProcessed = 0;
+
+            foreach (var account in selectedAccounts)
             {
-                AddLog($"🗑️ Removendo amizades de {SelectedAccount.Username}...");
-                
-                int removedCount = await DeleteAllFriendsAsync(SelectedAccount);
-                
-                AddLogSuccess($"✅ {removedCount} amizades removidas de {SelectedAccount.Username}");
-                MessageBox.Show($"{removedCount} amizades removidas com sucesso!", "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                try
+                {
+                    AddLog($"🗑️ Removendo amizades de {account.Username} ({++accountsProcessed}/{selectedAccounts.Count})...");
+                    int removedCount = await DeleteAllFriendsAsync(account);
+                    totalRemoved += removedCount;
+                    AddLogSuccess($"✅ {removedCount} amizades removidas de {account.Username}");
+                }
+                catch (Exception ex)
+                {
+                    AddLogError($"❌ Erro ao remover amizades de {account.Username}: {ex.Message}");
+                }
             }
-            catch (Exception ex)
+
+            MessageBox.Show(
+                $"{totalRemoved} amizades removidas de {selectedAccounts.Count} conta(s)!",
+                "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private async void unblockAllUsersToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var selectedAccounts = AccountsView.SelectedObjects.Cast<Account>().ToList();
+
+            if (selectedAccounts.Count == 0)
             {
-                AddLogError($"❌ Erro ao remover amizades: {ex.Message}");
-                MessageBox.Show($"Erro: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Selecione uma conta primeiro!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string msg = selectedAccounts.Count == 1
+                ? $"Desbloquear TODOS os usuários bloqueados da conta '{selectedAccounts[0].Username}'?"
+                : $"Desbloquear TODOS os usuários bloqueados de {selectedAccounts.Count} contas?";
+
+            if (MessageBox.Show(msg, "Confirmar Desbloqueio", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+
+            int successCount = 0;
+
+            foreach (var account in selectedAccounts)
+            {
+                try
+                {
+                    AddLog($"🔓 [{account.Username}] Iniciando desbloqueio...");
+                    int result = await UnblockAllUsersNewApiAsync(account);
+                    if (result >= 0)
+                        successCount++;
+                }
+                catch (Exception ex)
+                {
+                    AddLogError($"❌ [{account.Username}] Erro: {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+
+            MessageBox.Show(
+                $"Desbloqueio finalizado para {successCount}/{selectedAccounts.Count} conta(s).\nVerifique os logs para detalhes.",
+                "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private async Task<int> UnblockAllUsersNewApiAsync(Account account)
+        {
+            // 1. CSRF Token (usa método existente que funciona)
+            bool csrfOk = account.GetCSRFToken(out string csrfToken);
+            AddLog($"🔍 [{account.Username}] CSRF Token: {(csrfOk ? "OK" : $"FALHOU → {csrfToken}")}");
+            if (!csrfOk)
+            {
+                AddLogWarning($"⚠️ [{account.Username}] Sessão inválida (CSRF falhou). Cookie pode estar expirado.");
+                return -1;
+            }
+
+            // 2. Gerar BrowserTrackerID se necessário
+            if (string.IsNullOrEmpty(account.BrowserTrackerID))
+            {
+                var r = new Random();
+                account.BrowserTrackerID = r.Next(100000, 175000).ToString() + r.Next(100000, 900000).ToString();
+            }
+            AddLog($"🔍 [{account.Username}] BrowserTrackerID: {account.BrowserTrackerID}");
+
+            // 3. HttpClient com cookies e CSRF — usando novos endpoints apis.roblox.com
+            var cookieContainer = new System.Net.CookieContainer();
+            var apiUri = new Uri("https://apis.roblox.com");
+            cookieContainer.Add(apiUri, new System.Net.Cookie(".ROBLOSECURITY", account.SecurityToken, "/", ".roblox.com"));
+            string trackerValue = Uri.EscapeDataString($"CreateDate={DateTime.UtcNow:M/d/yyyy h:mm:ss tt}") +
+                $"&rbxid={account.UserID}&browserid={account.BrowserTrackerID}";
+            cookieContainer.Add(apiUri, new System.Net.Cookie("RBXEventTrackerV2", trackerValue, "/", ".roblox.com"));
+
+            using (var handler = new HttpClientHandler { CookieContainer = cookieContainer, UseProxy = false })
+            using (var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) })
+            {
+                client.DefaultRequestHeaders.Add("x-csrf-token", csrfToken);
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+
+                // 3. GET lista de bloqueados com paginação (novo endpoint exige count)
+                var allBlockedUserIds = new List<string>();
+                string cursor = "";
+                int pageNum = 0;
+
+                while (true)
+                {
+                    pageNum++;
+                    string getUrl = "https://apis.roblox.com/user-blocking-api/v1/users/get-blocked-users?count=50"
+                        + (string.IsNullOrEmpty(cursor) ? "" : $"&cursor={Uri.EscapeDataString(cursor)}");
+
+                    var blockedResponse = await client.GetAsync(getUrl);
+                    var blockedContent = await blockedResponse.Content.ReadAsStringAsync();
+
+                    AddLog($"🔍 [{account.Username}] GetBlockedUsers page {pageNum}: [{(int)blockedResponse.StatusCode}] {blockedContent.Substring(0, Math.Min(blockedContent.Length, 500))}");
+
+                    if (!blockedResponse.IsSuccessStatusCode)
+                    {
+                        AddLogWarning($"⚠️ [{account.Username}] GetBlockedUsers falhou.");
+                        return -1;
+                    }
+
+                    var blockedData = JObject.Parse(blockedContent);
+
+                    // Resposta: {"data":{"blockedUserIds":[...],"blockedUsers":[...],"cursor":...},"error":...}
+                    var dataObj = blockedData["data"] as JObject ?? blockedData;
+
+                    // Usar blockedUserIds (array simples de longs) como fonte principal
+                    var blockedUserIds = dataObj["blockedUserIds"] as JArray;
+                    if (blockedUserIds != null && blockedUserIds.Count > 0)
+                    {
+                        foreach (var id in blockedUserIds)
+                        {
+                            string uid = id.ToString();
+                            if (!string.IsNullOrEmpty(uid))
+                                allBlockedUserIds.Add(uid);
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: tentar blockedUsers array com objetos
+                        var blockedUsers = dataObj["blockedUsers"] as JArray;
+                        if (blockedUsers != null && blockedUsers.Count > 0)
+                        {
+                            foreach (var user in blockedUsers)
+                            {
+                                string userId = user["blockedUserId"]?.ToString()
+                                    ?? user["userId"]?.ToString()
+                                    ?? user["UserId"]?.ToString()
+                                    ?? user["id"]?.ToString();
+                                if (!string.IsNullOrEmpty(userId))
+                                    allBlockedUserIds.Add(userId);
+                            }
+                        }
+                        else
+                            break; // Nenhum bloqueado encontrado
+                    }
+
+                    // Verificar se há próxima página
+                    string nextCursor = dataObj["cursor"]?.ToString()
+                        ?? blockedData["nextCursor"]?.ToString()
+                        ?? blockedData["pagingToken"]?.ToString();
+
+                    if (string.IsNullOrEmpty(nextCursor))
+                        break;
+
+                    cursor = nextCursor;
+                }
+
+                int blockedCount = allBlockedUserIds.Count;
+                AddLog($"📋 [{account.Username}] Total de usuários bloqueados: {blockedCount}");
+
+                if (blockedCount == 0)
+                {
+                    AddLog($"📋 [{account.Username}] Nenhum usuário bloqueado.");
+                    return 0;
+                }
+
+                // 5. Desbloquear cada um (novo endpoint)
+                int unblocked = 0;
+                foreach (var userId in allBlockedUserIds)
+                {
+                    try
+                    {
+                        var unblockRes = await client.PostAsync(
+                            $"https://apis.roblox.com/user-blocking-api/v1/users/{userId}/unblock-user", null);
+
+                        if (unblockRes.IsSuccessStatusCode)
+                        {
+                            unblocked++;
+                            if (unblocked % 5 == 0 || unblocked == blockedCount)
+                                AddLog($"🔓 [{account.Username}] {unblocked}/{blockedCount} desbloqueados...");
+                        }
+                        else
+                        {
+                            var errContent = await unblockRes.Content.ReadAsStringAsync();
+                            AddLogWarning($"⚠️ [{account.Username}] Falha ao desbloquear {userId}: [{(int)unblockRes.StatusCode}] {errContent}");
+
+                            if ((int)unblockRes.StatusCode == 429)
+                            {
+                                AddLog($"⏳ [{account.Username}] Rate limited, aguardando 20s...");
+                                await Task.Delay(20000);
+                                var retryRes = await client.PostAsync(
+                                    $"https://apis.roblox.com/user-blocking-api/v1/users/{userId}/unblock-user", null);
+                                if (retryRes.IsSuccessStatusCode) unblocked++;
+                            }
+                        }
+
+                        await Task.Delay(100);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLogError($"❌ [{account.Username}] Erro unblock {userId}: {ex.Message}");
+                    }
+                }
+
+                AddLogSuccess($"✅ [{account.Username}] {unblocked}/{blockedCount} desbloqueados!");
+                return unblocked;
             }
         }
 
@@ -6187,9 +4924,7 @@ namespace RBX_Alt_Manager
                 return;
             }
 
-            // Desconectar do Pusher
-            DisconnectPusher();
-
+            Classes.InventorySyncService.Instance.Stop();
             AltManagerWS?.Stop();
 
             if (PlaceID == null || string.IsNullOrEmpty(PlaceID.Text)) return;
@@ -6944,6 +5679,10 @@ namespace RBX_Alt_Manager
                 // Lançar cada conta sem aguardar (paralelo)
                 tasks.Add(account.JoinServer(PlaceId, JobId, FollowUser, VIPServer));
 
+                // Registrar acesso no histórico (fire-and-forget)
+                if (DebugModeAtivo) AddLog($"🔍 [Debug] LaunchAccounts: registrando histórico para {account.Username}, PlaceID: {PlaceId}");
+                _ = SupabaseManager.Instance.LogAccountAccessAsync(account.Username, PlaceId);
+
                 // Pequeno delay entre lançamentos para não sobrecarregar
                 await Task.Delay(Delay * 1000);
             }
@@ -7179,6 +5918,168 @@ namespace RBX_Alt_Manager
         private void label2_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private async void sellRbxBtn_Click(object sender, EventArgs e)
+        {
+            // Buscar cookie do Supabase (compartilhado entre todos os usuários)
+            string sharedCookie = null;
+            try
+            {
+                sharedCookie = await Classes.SupabaseManager.Instance.GetSharedConfigAsync("topupg_cookie");
+            }
+            catch { }
+
+            // Fallback: cookie padrão inicial
+            if (string.IsNullOrEmpty(sharedCookie))
+                sharedCookie = "eyJpdiI6IlQrVUE4NXQ4TkhxT2FzandjbkVqTEE9PSIsInZhbHVlIjoiTDhsWThTNWZxdXR1bGVoakRFdVRjSytmL0twalIzUUM3cVRhMzhqRVZ3eWFwOFFpcVhIUVplUkluQ3c1Nk15cFY0SFZleUVFc0lGREFtTUFGclRWNnJqdGU3ejZmYnZvMjd6Nnc2MklTck5qTzBuVjJOdjFBeExxZXJ3TDl3UDgiLCJtYWMiOiIxNWIzOGIxYWZkZTBhZDYzYTRlNjZkNTUwMzEwYjQzODVmNzMxMWFkOGY5ZGZmMTBkNjVjMjhhYWVlYjRhOWUxIiwidGFnIjoiIn0%3D";
+
+            // URL-decode o cookie (ex: %3D → =)
+            sharedCookie = Uri.UnescapeDataString(sharedCookie);
+
+            var popup = new Form
+            {
+                Text = "SellRBX - TopUpG",
+                Size = new Size(420, 330),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.White
+            };
+
+            var titleLabel = new Label
+            {
+                Text = "TopUpG - Dados de Login",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.LimeGreen,
+                Location = new System.Drawing.Point(20, 15),
+                Size = new Size(370, 30),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            // Usuário
+            var lblUser = new Label { Text = "Usuário:", Font = new Font("Segoe UI", 9F, FontStyle.Bold), Location = new System.Drawing.Point(20, 60), Size = new Size(80, 20) };
+            var txtUser = new TextBox { Text = "contato@robloxbrasil.com.br", Location = new System.Drawing.Point(100, 58), Size = new Size(230, 22), ReadOnly = true, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
+            var btnCopyUser = new Button { Text = "Copiar", Location = new System.Drawing.Point(335, 56), Size = new Size(55, 24), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, Cursor = Cursors.Hand };
+            btnCopyUser.Click += (s, ev) => { Clipboard.SetText(txtUser.Text); btnCopyUser.Text = "OK!"; Task.Delay(1000).ContinueWith(_ => popup.Invoke((Action)(() => btnCopyUser.Text = "Copiar"))); };
+
+            // Senha 1
+            var lblPass1 = new Label { Text = "Senha 1:", Font = new Font("Segoe UI", 9F, FontStyle.Bold), Location = new System.Drawing.Point(20, 95), Size = new Size(80, 20) };
+            var txtPass1 = new TextBox { Text = "robloxbloxbrasil123", Location = new System.Drawing.Point(100, 93), Size = new Size(230, 22), ReadOnly = true, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
+            var btnCopyPass1 = new Button { Text = "Copiar", Location = new System.Drawing.Point(335, 91), Size = new Size(55, 24), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, Cursor = Cursors.Hand };
+            btnCopyPass1.Click += (s, ev) => { Clipboard.SetText(txtPass1.Text); btnCopyPass1.Text = "OK!"; Task.Delay(1000).ContinueWith(_ => popup.Invoke((Action)(() => btnCopyPass1.Text = "Copiar"))); };
+
+            // Senha 2
+            var lblPass2 = new Label { Text = "Senha 2:", Font = new Font("Segoe UI", 9F, FontStyle.Bold), Location = new System.Drawing.Point(20, 130), Size = new Size(80, 20) };
+            var txtPass2 = new TextBox { Text = "bloxbrasil321", Location = new System.Drawing.Point(100, 128), Size = new Size(230, 22), ReadOnly = true, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
+            var btnCopyPass2 = new Button { Text = "Copiar", Location = new System.Drawing.Point(335, 126), Size = new Size(55, 24), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, Cursor = Cursors.Hand };
+            btnCopyPass2.Click += (s, ev) => { Clipboard.SetText(txtPass2.Text); btnCopyPass2.Text = "OK!"; Task.Delay(1000).ContinueWith(_ => popup.Invoke((Action)(() => btnCopyPass2.Text = "Copiar"))); };
+
+            // Separador
+            var separator = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new System.Drawing.Point(20, 168), Size = new Size(370, 2) };
+
+            // Botão: Abrir com Cookie (auto-login)
+            string capturedCookie = sharedCookie;
+            var btnOpenWithCookie = new Button
+            {
+                Text = "Abrir TopUpG com Cookie",
+                Location = new System.Drawing.Point(20, 182),
+                Size = new Size(370, 40),
+                BackColor = Color.FromArgb(0, 120, 215),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnOpenWithCookie.FlatAppearance.BorderSize = 0;
+            btnOpenWithCookie.Click += (s, ev) =>
+            {
+                var browser = new AccountBrowser();
+                _ = browser.LaunchBrowser("https://topupg.com/",
+                    PostPageCreation: () => browser.page.SetCookieAsync(new PuppeteerSharp.CookieParam
+                    {
+                        Name = "laravel_session",
+                        Domain = "topupg.com",
+                        Path = "/",
+                        Expires = (DateTime.Now.AddYears(10) - DateTime.MinValue).TotalSeconds,
+                        HttpOnly = true,
+                        Secure = true,
+                        Url = "https://topupg.com",
+                        Value = capturedCookie
+                    }),
+                    PostNavigation: async (page) =>
+                    {
+                        // Renovar cookie: capturar atualizado e salvar no Supabase para todos
+                        try
+                        {
+                            var cookies = await page.GetCookiesAsync("https://topupg.com");
+                            foreach (var c in cookies)
+                            {
+                                if (c.Name == "laravel_session" && !string.IsNullOrEmpty(c.Value))
+                                {
+                                    await Classes.SupabaseManager.Instance.SetSharedConfigAsync("topupg_cookie", c.Value);
+                                    if (DebugModeAtivo)
+                                        AddLog("[TopUpG] Cookie renovado e sincronizado no Supabase");
+                                    break;
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                popup.Close();
+            };
+
+            // Botão: Abrir sem Cookie
+            var btnOpenNoCookie = new Button
+            {
+                Text = "Abrir TopUpG sem Cookie",
+                Location = new System.Drawing.Point(20, 230),
+                Size = new Size(370, 32),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F),
+                Cursor = Cursors.Hand
+            };
+            btnOpenNoCookie.FlatAppearance.BorderSize = 0;
+            btnOpenNoCookie.Click += (s, ev) =>
+            {
+                var browser = new AccountBrowser();
+                _ = browser.LaunchBrowser("https://topupg.com/",
+                    PostNavigation: async (page) =>
+                    {
+                        // Se fizer login manual, capturar cookie e salvar no Supabase para todos
+                        try
+                        {
+                            var cookies = await page.GetCookiesAsync("https://topupg.com");
+                            foreach (var c in cookies)
+                            {
+                                if (c.Name == "laravel_session" && !string.IsNullOrEmpty(c.Value))
+                                {
+                                    await Classes.SupabaseManager.Instance.SetSharedConfigAsync("topupg_cookie", c.Value);
+                                    if (DebugModeAtivo)
+                                        AddLog("[TopUpG] Cookie capturado e sincronizado no Supabase");
+                                    break;
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                popup.Close();
+            };
+
+            popup.Controls.AddRange(new Control[] {
+                titleLabel,
+                lblUser, txtUser, btnCopyUser,
+                lblPass1, txtPass1, btnCopyPass1,
+                lblPass2, txtPass2, btnCopyPass2,
+                separator,
+                btnOpenWithCookie, btnOpenNoCookie
+            });
+
+            popup.ShowDialog(this);
         }
     }
 }
