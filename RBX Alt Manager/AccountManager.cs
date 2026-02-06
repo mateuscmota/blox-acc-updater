@@ -261,7 +261,8 @@ namespace RBX_Alt_Manager
             if (!General.Exists("PresenceUpdateRate")) General.Set("PresenceUpdateRate", "5");
             if (!General.Exists("UnlockFPS")) General.Set("UnlockFPS", "false");
             if (!General.Exists("MaxFPSValue")) General.Set("MaxFPSValue", "120");
-            if (!General.Exists("UseCefSharpBrowser")) General.Set("UseCefSharpBrowser", "false");
+            // Forçar Chromium (Puppeteer) — CefSharp removido
+            General.Set("UseCefSharpBrowser", "false");
 
             if (!General.Exists("EnableMultiRbx")) General.Set("EnableMultiRbx", "true");
             if (!General.Exists("CloseRobloxOnExit")) General.Set("CloseRobloxOnExit", "true");
@@ -2013,7 +2014,17 @@ namespace RBX_Alt_Manager
         private void AccountManager_Shown(object sender, EventArgs e)
         {
             if (!UpdateMultiRoblox() && !General.Get<bool>("HideRbxAlert"))
-                MessageBox.Show("WARNING: Roblox is currently running, multi roblox will not work until you restart the account manager with roblox closed.", "Roblox Account Manager", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "O Roblox já está aberto!\n\n" +
+                    "O Multi Roblox NÃO vai funcionar até você:\n" +
+                    "1. Fechar TODOS os processos do Roblox\n" +
+                    "2. Reabrir o Account Manager\n" +
+                    "3. Só depois abrir o Roblox pelo Account Manager\n\n" +
+                    "Ordem correta: Account Manager → Conta principal → Outras contas",
+                    "Multi Roblox - Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+            // Limpar pasta de downloads residuais do Roblox (evita acúmulo de GB)
+            CleanRobloxDownloads();
 
             // Tentar adicionar exclusão do Defender para evitar que o AV bloqueie o Roblox
             EnsureRobloxDefenderExclusion();
@@ -2022,7 +2033,7 @@ namespace RBX_Alt_Manager
 
             PuppeteerSupported = !(Major < 6 || (Major == 6 && Minor <= 1));
 
-            if (General.Get<bool>("UseCefSharpBrowser")) PuppeteerSupported = false;
+            // CefSharp removido — sempre usar Chromium (Puppeteer)
 
             if (!PuppeteerSupported)
             {
@@ -2049,52 +2060,74 @@ namespace RBX_Alt_Manager
                     });
                 });
             }
-            else if (!PuppeteerSupported)
+            // CefSharp removido — apenas Chromium (Puppeteer) é suportado
+        }
+
+        /// <summary>
+        /// Limpa a pasta de downloads residuais do Roblox para evitar acúmulo de arquivos grandes.
+        /// O bootstrapper do Roblox deixa arquivos em Downloads\roblox-player que podem acumular GBs.
+        /// </summary>
+        private void CleanRobloxDownloads()
+        {
+            Task.Run(() =>
             {
-                FileInfo Cef = new FileInfo(Path.Combine(Environment.CurrentDirectory, "x86", "CefSharp.dll"));
-
-                if (Cef.Exists)
+                try
                 {
-                    FileVersionInfo Info = FileVersionInfo.GetVersionInfo(Cef.FullName);
+                    string downloadsPath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "Roblox", "Downloads");
 
-                    if (Info.ProductMajorPart != 109)
-                        try { Directory.GetParent(Cef.FullName).RecursiveDelete(); } catch { }
-                }
+                    if (!Directory.Exists(downloadsPath)) return;
 
-                if (!Directory.Exists(Path.Combine(Environment.CurrentDirectory, "x86")))
-                {
-                    var Existing = new DirectoryInfo(Path.Combine(Environment.CurrentDirectory, "x86"));
+                    long totalSize = 0;
+                    var dirs = Directory.GetDirectories(downloadsPath);
 
-
-                    AddUserPassButton.Visible = false;
-                    AddCookieButton.Visible = false;
-
-                    Task.Run(async () =>
+                    foreach (var dir in dirs)
                     {
-                        IsDownloadingChromium = true;
-
-                        using HttpClient client = new HttpClient();
-
-                        string FileName = Path.GetTempFileName(), DownloadUrl = Resources.CefSharpDownload;
-
-                        var TotalDownloadSize = (await client.SendAsync(new HttpRequestMessage(HttpMethod.Head, DownloadUrl))).Content.Headers.ContentLength.Value;
-
-                        using (var file = new FileStream(FileName, FileMode.Create, FileAccess.Write, FileShare.None))
-
-                        if (Existing.Exists) Existing.RecursiveDelete();
-
-                        System.IO.Compression.ZipFile.ExtractToDirectory(FileName, Environment.CurrentDirectory);
-
-                        IsDownloadingChromium = false;
-
-                        this.InvokeIfRequired(() =>
+                        try
                         {
-                            AddUserPassButton.Visible = true;
-                            AddCookieButton.Visible = true;
-                        });
-                    });
+                            foreach (var file in Directory.GetFiles(dir, "*", SearchOption.AllDirectories))
+                                totalSize += new FileInfo(file).Length;
+                        }
+                        catch { }
+                    }
+
+                    // Só limpa se acumulou mais de 500MB
+                    if (totalSize < 500 * 1024 * 1024) return;
+
+                    double sizeMB = totalSize / (1024.0 * 1024.0);
+                    AddLog($"🧹 [Multi Roblox] Limpando {sizeMB:F0}MB de downloads residuais do Roblox...");
+
+                    int cleaned = 0;
+                    foreach (var dir in dirs)
+                    {
+                        try
+                        {
+                            Directory.Delete(dir, true);
+                            cleaned++;
+                        }
+                        catch { }
+                    }
+
+                    // Limpar arquivos soltos na pasta Downloads também
+                    try
+                    {
+                        foreach (var file in Directory.GetFiles(downloadsPath))
+                        {
+                            try { File.Delete(file); cleaned++; } catch { }
+                        }
+                    }
+                    catch { }
+
+                    if (cleaned > 0)
+                        AddLog($"✅ [Multi Roblox] Limpeza concluída: {cleaned} itens removidos ({sizeMB:F0}MB liberados)");
                 }
-            }
+                catch (Exception ex)
+                {
+                    if (DebugModeAtivo)
+                        AddLog($"⚠️ [Multi Roblox] Erro na limpeza: {ex.Message}");
+                }
+            });
         }
 
         /// <summary>
@@ -2187,13 +2220,23 @@ namespace RBX_Alt_Manager
                     rbxMultiMutex = new Mutex(true, "ROBLOX_singletonMutex");
 
                     if (!rbxMultiMutex.WaitOne(TimeSpan.Zero, true))
+                    {
+                        AddLog("⚠️ [Multi Roblox] Não foi possível adquirir o mutex. O Roblox já está rodando. Feche todos os processos do Roblox e reabra o Account Manager.");
                         return false;
+                    }
+
+                    AddLog("✅ [Multi Roblox] Mutex adquirido com sucesso. Múltiplas instâncias permitidas.");
                 }
-                catch { return false; }
+                catch (Exception ex)
+                {
+                    AddLog($"❌ [Multi Roblox] Erro ao adquirir mutex: {ex.Message}");
+                    return false;
+                }
             else if (!Enabled && rbxMultiMutex != null)
             {
                 rbxMultiMutex.Close();
                 rbxMultiMutex = null;
+                AddLog("ℹ️ [Multi Roblox] Desativado. Mutex liberado.");
             }
 
             return true;
@@ -2405,7 +2448,7 @@ namespace RBX_Alt_Manager
                 AddCookieButton.Enabled = true;
             }
             else
-                CefBrowser.Instance.Login();
+                MessageBox.Show("O navegador Chromium não está disponível.\nAguarde o download automático ou reinstale o aplicativo.", "Navegador Indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private void DownloadProgressBar_Click(object sender, EventArgs e)
@@ -5704,8 +5747,7 @@ namespace RBX_Alt_Manager
                 }
                 else
                 {
-                    // CefSharp sem conta - abre tela de login
-                    CefBrowser.Instance.EnterBrowserMode(null, "https://www.roblox.com/login");
+                    MessageBox.Show("O navegador Chromium não está disponível.\nAguarde o download automático ou reinstale o aplicativo.", "Navegador Indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
                 return;
             }
@@ -5715,7 +5757,7 @@ namespace RBX_Alt_Manager
                 foreach (Account account in AccountsView.SelectedObjects)
                     new AccountBrowser(account);
             else if (!PuppeteerSupported && SelectedAccount != null)
-                CefBrowser.Instance.EnterBrowserMode(SelectedAccount);
+                MessageBox.Show("O navegador Chromium não está disponível.\nAguarde o download automático ou reinstale o aplicativo.", "Navegador Indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         /// <summary>
@@ -5757,7 +5799,7 @@ namespace RBX_Alt_Manager
             }
             else
             {
-                CefBrowser.Instance.EnterBrowserMode(null, "https://www.roblox.com/login");
+                MessageBox.Show("O navegador Chromium não está disponível.\nAguarde o download automático ou reinstale o aplicativo.", "Navegador Indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -5768,7 +5810,7 @@ namespace RBX_Alt_Manager
                     foreach (Account account in AccountsView.SelectedObjects)
                         new AccountBrowser(account, Link.ToString(), string.Empty);
                 else if (!PuppeteerSupported && SelectedAccount != null)
-                    CefBrowser.Instance.EnterBrowserMode(SelectedAccount, Link.ToString());
+                    MessageBox.Show("O navegador Chromium não está disponível.", "Navegador Indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private void URLJSToolStripMenuItem_Click(object sender, EventArgs e)
