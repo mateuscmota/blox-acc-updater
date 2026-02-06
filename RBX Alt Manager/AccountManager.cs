@@ -6376,9 +6376,22 @@ namespace RBX_Alt_Manager
 
         public void ShowCalculadoraPopup()
         {
+            // Load saved config
+            string formulaBaixo = General.Get<string>("CalcFormulaBaixo");
+            if (string.IsNullOrEmpty(formulaBaixo)) formulaBaixo = "((P*2)*1.5)*1.15";
+            string formulaMedio = General.Get<string>("CalcFormulaMedio");
+            if (string.IsNullOrEmpty(formulaMedio)) formulaMedio = "((P*2)*1.15)*1.15";
+            string formulaAlto = General.Get<string>("CalcFormulaAlto");
+            if (string.IsNullOrEmpty(formulaAlto)) formulaAlto = "(P*2)*1.15";
+            string savedDolar = General.Get<string>("CalcValorDolar");
+            if (string.IsNullOrEmpty(savedDolar)) savedDolar = "5.70";
+
+            string[] currentFormulas = { formulaBaixo, formulaMedio, formulaAlto };
+            string[] currentDolar = { savedDolar }; // array for closure mutation
+
             Form popup = new Form();
             popup.Text = "Calculadora de Preços";
-            popup.Size = new System.Drawing.Size(530, 470);
+            popup.Size = new System.Drawing.Size(530, 380);
             popup.StartPosition = FormStartPosition.CenterParent;
             popup.BackColor = ThemeEditor.FormsBackground;
             popup.ForeColor = ThemeEditor.FormsForeground;
@@ -6393,31 +6406,76 @@ namespace RBX_Alt_Manager
             var fontTitle = new System.Drawing.Font("Segoe UI Semibold", 9.5F);
             var ptBR = new System.Globalization.CultureInfo("pt-BR");
 
-            // Load saved values
-            string formulaBaixo = General.Get<string>("CalcFormulaBaixo");
-            if (string.IsNullOrEmpty(formulaBaixo)) formulaBaixo = "((P*2)*1.5)*1.15";
-            string formulaMedio = General.Get<string>("CalcFormulaMedio");
-            if (string.IsNullOrEmpty(formulaMedio)) formulaMedio = "((P*2)*1.15)*1.15";
-            string formulaAlto = General.Get<string>("CalcFormulaAlto");
-            if (string.IsNullOrEmpty(formulaAlto)) formulaAlto = "(P*2)*1.15";
-            string savedDolar = General.Get<string>("CalcValorDolar");
-            if (string.IsNullOrEmpty(savedDolar)) savedDolar = "5.70";
+            int y = 15;
 
-            int y = 12;
+            // === Dólar display ===
+            var lblDolarInfo = new Label { Text = $"Dólar: R$ {savedDolar}", Font = fontSmall, Location = new System.Drawing.Point(12, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(140, 140, 155) };
+            popup.Controls.Add(lblDolarInfo);
 
-            // === Valor do Dólar ===
-            popup.Controls.Add(new Label { Text = "Valor do Dólar (R$):", Font = font, Location = new System.Drawing.Point(12, y + 3), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
-            var txtDolar = new TextBox { Font = font, Text = savedDolar, Location = new System.Drawing.Point(170, y), Size = new System.Drawing.Size(80, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
-            popup.Controls.Add(txtDolar);
-            y += 30;
+            // === Config button ===
+            var btnConfig = new Button
+            {
+                Text = "⚙ Configurações",
+                Font = fontSmall,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = ThemeEditor.ButtonsBackground,
+                ForeColor = ThemeEditor.ButtonsForeground,
+                Size = new System.Drawing.Size(110, 22),
+                Location = new System.Drawing.Point(400, y - 3),
+                Cursor = Cursors.Hand
+            };
+            btnConfig.FlatAppearance.BorderSize = 0;
+            popup.Controls.Add(btnConfig);
+            y += 25;
 
-            // === Preço Fornecedor ===
-            popup.Controls.Add(new Label { Text = "Preço Fornecedor (R$):", Font = font, Location = new System.Drawing.Point(12, y + 3), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
-            var txtPreco = new TextBox { Font = font, Location = new System.Drawing.Point(170, y), Size = new System.Drawing.Size(80, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
-            var lblPrecoUSD = new Label { Text = "(USD: --)", Font = fontSmall, Location = new System.Drawing.Point(260, y + 5), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(140, 140, 155) };
-            popup.Controls.Add(txtPreco);
-            popup.Controls.Add(lblPrecoUSD);
-            y += 35;
+            // Separator
+            popup.Controls.Add(new Label { Location = new System.Drawing.Point(12, y), Size = new System.Drawing.Size(490, 1), BackColor = System.Drawing.Color.FromArgb(60, 60, 70) });
+            y += 10;
+
+            // === PREÇO EM REAL ===
+            popup.Controls.Add(new Label { Text = "PREÇO EM REAL (R$):", Font = font, Location = new System.Drawing.Point(12, y + 3), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
+            var txtPrecoReal = new TextBox { Font = font, Location = new System.Drawing.Point(180, y), Size = new System.Drawing.Size(100, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+            popup.Controls.Add(txtPrecoReal);
+            y += 32;
+
+            // === PREÇO EM DÓLAR ===
+            popup.Controls.Add(new Label { Text = "PREÇO EM DÓLAR ($):", Font = font, Location = new System.Drawing.Point(12, y + 3), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
+            var txtPrecoDolar = new TextBox { Font = font, Location = new System.Drawing.Point(180, y), Size = new System.Drawing.Size(100, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+            popup.Controls.Add(txtPrecoDolar);
+            y += 40;
+
+            // Link inputs: typing in one auto-updates the other
+            bool _isUpdating = false;
+            txtPrecoReal.TextChanged += (s, args) =>
+            {
+                if (_isUpdating) return;
+                _isUpdating = true;
+                string dolarStr = currentDolar[0].Replace(",", ".");
+                if (double.TryParse(dolarStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dolar) && dolar > 0)
+                {
+                    string realStr = txtPrecoReal.Text.Replace(",", ".");
+                    if (double.TryParse(realStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double real))
+                        txtPrecoDolar.Text = (real / dolar).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                    else
+                        txtPrecoDolar.Text = "";
+                }
+                _isUpdating = false;
+            };
+            txtPrecoDolar.TextChanged += (s, args) =>
+            {
+                if (_isUpdating) return;
+                _isUpdating = true;
+                string dolarStr = currentDolar[0].Replace(",", ".");
+                if (double.TryParse(dolarStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dolar) && dolar > 0)
+                {
+                    string usdStr = txtPrecoDolar.Text.Replace(",", ".");
+                    if (double.TryParse(usdStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double usd))
+                        txtPrecoReal.Text = (usd * dolar).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                    else
+                        txtPrecoReal.Text = "";
+                }
+                _isUpdating = false;
+            };
 
             // === CALCULAR button ===
             var btnCalcular = new Button
@@ -6441,40 +6499,20 @@ namespace RBX_Alt_Manager
             popup.Controls.Add(new Label { Location = new System.Drawing.Point(12, y), Size = new System.Drawing.Size(490, 1), BackColor = System.Drawing.Color.FromArgb(60, 60, 70) });
             y += 8;
 
-            // === 3 Tiers ===
-            var txtFormulas = new TextBox[3];
-            var lblResultsReal = new Label[3];
-            var lblResultsDolar = new Label[3];
+            // === 3 Tiers (results only) ===
+            var lblResults = new Label[3];
             var lblTierTitles = new Label[3];
 
             string[] tierNames = { "TICKET BAIXO (< $5 / < R$25)", "TICKET MÉDIO ($5 ~ $20)", "TICKET ALTO (> $20)" };
-            string[] formulas = { formulaBaixo, formulaMedio, formulaAlto };
-            string[] defaultFormulas = { "((P*2)*1.5)*1.15", "((P*2)*1.15)*1.15", "(P*2)*1.15" };
 
             for (int i = 0; i < 3; i++)
             {
-                // Tier title
                 lblTierTitles[i] = new Label { Text = tierNames[i], Font = fontTitle, Location = new System.Drawing.Point(12, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(170, 170, 185) };
                 popup.Controls.Add(lblTierTitles[i]);
                 y += 22;
 
-                // Formula row
-                popup.Controls.Add(new Label { Text = "Fórmula:", Font = fontSmall, Location = new System.Drawing.Point(12, y + 3), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
-                txtFormulas[i] = new TextBox { Font = fontSmall, Text = formulas[i], Location = new System.Drawing.Point(68, y), Size = new System.Drawing.Size(220, 21), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
-                popup.Controls.Add(txtFormulas[i]);
-
-                int idx = i;
-                var btnRestore = new Button { Text = "↺", Font = font, FlatStyle = FlatStyle.Flat, Size = new System.Drawing.Size(24, 21), Location = new System.Drawing.Point(293, y), BackColor = ThemeEditor.ButtonsBackground, ForeColor = ThemeEditor.ButtonsForeground, Cursor = Cursors.Hand };
-                btnRestore.FlatAppearance.BorderSize = 0;
-                btnRestore.Click += (s, args) => txtFormulas[idx].Text = defaultFormulas[idx];
-                popup.Controls.Add(btnRestore);
-                y += 24;
-
-                // Results row
-                lblResultsReal[i] = new Label { Text = "R$: --", Font = fontBold, Location = new System.Drawing.Point(22, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(52, 211, 153) };
-                lblResultsDolar[i] = new Label { Text = "$: --", Font = fontBold, Location = new System.Drawing.Point(200, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(100, 180, 255) };
-                popup.Controls.Add(lblResultsReal[i]);
-                popup.Controls.Add(lblResultsDolar[i]);
+                lblResults[i] = new Label { Text = "PREÇO SUGERIDO: --", Font = fontBold, Location = new System.Drawing.Point(22, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(52, 211, 153) };
+                popup.Controls.Add(lblResults[i]);
                 y += 25;
 
                 if (i < 2)
@@ -6483,28 +6521,6 @@ namespace RBX_Alt_Manager
                     y += 6;
                 }
             }
-            y += 8;
-
-            // Helper text
-            popup.Controls.Add(new Label { Text = "P = Preço Fornecedor. Use: +, -, *, /, ()", Font = fontSmall, Location = new System.Drawing.Point(12, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(100, 100, 115) });
-            y += 20;
-
-            // SALVAR FÓRMULAS button
-            var btnSalvar = new Button
-            {
-                Text = "SALVAR FÓRMULAS",
-                Font = fontBold,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = ThemeEditor.ButtonsBackground,
-                ForeColor = ThemeEditor.ButtonsForeground,
-                Size = new System.Drawing.Size(140, 28),
-                Location = new System.Drawing.Point(12, y),
-                Cursor = Cursors.Hand
-            };
-            btnSalvar.FlatAppearance.BorderSize = 0;
-            var lblStatus = new Label { Text = "", Font = fontSmall, Location = new System.Drawing.Point(160, y + 7), AutoSize = true };
-            popup.Controls.Add(btnSalvar);
-            popup.Controls.Add(lblStatus);
 
             // Formula evaluator using DataTable.Compute
             Func<string, double, double> evalFormula = (formula, price) =>
@@ -6522,25 +6538,37 @@ namespace RBX_Alt_Manager
             // Calculate action
             Action doCalculate = () =>
             {
-                double dolar, preco;
-                string dolarText = txtDolar.Text.Replace(",", ".");
-                string precoText = txtPreco.Text.Replace(",", ".");
-
-                if (!double.TryParse(dolarText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out dolar) || dolar <= 0)
+                string dolarStr = currentDolar[0].Replace(",", ".");
+                if (!double.TryParse(dolarStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dolar) || dolar <= 0)
                 {
-                    lblTierIndicator.Text = "Valor do dólar inválido";
-                    lblTierIndicator.ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
-                    return;
-                }
-                if (!double.TryParse(precoText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out preco) || preco <= 0)
-                {
-                    lblTierIndicator.Text = "Preço inválido";
+                    lblTierIndicator.Text = "Configure o valor do dólar";
                     lblTierIndicator.ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
                     return;
                 }
 
-                double precoUSD = preco / dolar;
-                lblPrecoUSD.Text = $"(USD: ${precoUSD:F2})";
+                // Get price in BRL - prefer txtPrecoReal, fallback to converting from USD
+                double precoReal = 0;
+                string realStr = txtPrecoReal.Text.Replace(",", ".");
+                string usdStr = txtPrecoDolar.Text.Replace(",", ".");
+
+                if (!string.IsNullOrWhiteSpace(txtPrecoReal.Text) &&
+                    double.TryParse(realStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out precoReal) && precoReal > 0)
+                {
+                    // OK, precoReal is set
+                }
+                else if (!string.IsNullOrWhiteSpace(txtPrecoDolar.Text) &&
+                    double.TryParse(usdStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double precoUsd) && precoUsd > 0)
+                {
+                    precoReal = precoUsd * dolar;
+                }
+                else
+                {
+                    lblTierIndicator.Text = "Informe o preço";
+                    lblTierIndicator.ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                    return;
+                }
+
+                double precoUSD = precoReal / dolar;
 
                 int activeTier = precoUSD < 5 ? 0 : (precoUSD < 20 ? 1 : 2);
                 string[] tierLabels = { "→ Ticket Baixo", "→ Ticket Médio", "→ Ticket Alto" };
@@ -6549,30 +6577,24 @@ namespace RBX_Alt_Manager
 
                 for (int i = 0; i < 3; i++)
                 {
-                    double siteReal = evalFormula(txtFormulas[i].Text, preco);
+                    double siteReal = evalFormula(currentFormulas[i], precoReal);
                     if (siteReal < 0)
                     {
-                        lblResultsReal[i].Text = "R$: ERRO";
-                        lblResultsDolar[i].Text = "$: ERRO";
-                        lblResultsReal[i].ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
-                        lblResultsDolar[i].ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                        lblResults[i].Text = "PREÇO SUGERIDO: ERRO";
+                        lblResults[i].ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
                     }
                     else
                     {
-                        double siteDolar = siteReal / dolar;
-                        lblResultsReal[i].Text = $"R$ {Math.Ceiling(siteReal).ToString("N0", ptBR)}";
-                        lblResultsDolar[i].Text = $"$ {siteDolar:F2}";
+                        lblResults[i].Text = $"PREÇO SUGERIDO: R$ {Math.Ceiling(siteReal).ToString("N0", ptBR)}";
 
                         if (i == activeTier)
                         {
-                            lblResultsReal[i].ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
-                            lblResultsDolar[i].ForeColor = System.Drawing.Color.FromArgb(100, 180, 255);
+                            lblResults[i].ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
                             lblTierTitles[i].ForeColor = System.Drawing.Color.White;
                         }
                         else
                         {
-                            lblResultsReal[i].ForeColor = System.Drawing.Color.FromArgb(100, 100, 110);
-                            lblResultsDolar[i].ForeColor = System.Drawing.Color.FromArgb(100, 100, 110);
+                            lblResults[i].ForeColor = System.Drawing.Color.FromArgb(100, 100, 110);
                             lblTierTitles[i].ForeColor = System.Drawing.Color.FromArgb(100, 100, 110);
                         }
                     }
@@ -6580,22 +6602,169 @@ namespace RBX_Alt_Manager
             };
 
             btnCalcular.Click += (s, args) => doCalculate();
-            txtPreco.KeyDown += (s, args) => { if (args.KeyCode == Keys.Enter) { doCalculate(); args.SuppressKeyPress = true; } };
-            txtDolar.KeyDown += (s, args) => { if (args.KeyCode == Keys.Enter) { doCalculate(); args.SuppressKeyPress = true; } };
+            txtPrecoReal.KeyDown += (s, args) => { if (args.KeyCode == Keys.Enter) { doCalculate(); args.SuppressKeyPress = true; } };
+            txtPrecoDolar.KeyDown += (s, args) => { if (args.KeyCode == Keys.Enter) { doCalculate(); args.SuppressKeyPress = true; } };
 
-            // Save formulas
+            // Config button opens config popup
+            btnConfig.Click += (s, args) =>
+            {
+                ShowCalculadoraConfigPopup(currentFormulas, currentDolar);
+                // Refresh dolar display
+                lblDolarInfo.Text = $"Dólar: R$ {currentDolar[0]}";
+            };
+
+            popup.ShowDialog(this);
+        }
+
+        private void ShowCalculadoraConfigPopup(string[] formulas, string[] dolarRef)
+        {
+            Form config = new Form();
+            config.Text = "Configurações da Calculadora";
+            config.Size = new System.Drawing.Size(460, 370);
+            config.StartPosition = FormStartPosition.CenterParent;
+            config.BackColor = ThemeEditor.FormsBackground;
+            config.ForeColor = ThemeEditor.FormsForeground;
+            config.MaximizeBox = false;
+            config.MinimizeBox = false;
+            config.FormBorderStyle = FormBorderStyle.FixedDialog;
+            config.Icon = this.Icon;
+
+            var font = new System.Drawing.Font("Segoe UI", 9F);
+            var fontBold = new System.Drawing.Font("Segoe UI Semibold", 9F);
+            var fontSmall = new System.Drawing.Font("Segoe UI", 7.5F);
+            var fontTitle = new System.Drawing.Font("Segoe UI Semibold", 9.5F);
+
+            int y = 15;
+
+            // === Valor do Dólar ===
+            config.Controls.Add(new Label { Text = "Valor do Dólar (R$):", Font = font, Location = new System.Drawing.Point(12, y + 3), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
+            var txtDolar = new TextBox { Font = font, Text = dolarRef[0], Location = new System.Drawing.Point(155, y), Size = new System.Drawing.Size(80, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+            config.Controls.Add(txtDolar);
+
+            var btnBuscarDolar = new Button
+            {
+                Text = "Buscar Online",
+                Font = fontSmall,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = System.Drawing.Color.FromArgb(0, 120, 180),
+                ForeColor = System.Drawing.Color.White,
+                Size = new System.Drawing.Size(90, 23),
+                Location = new System.Drawing.Point(245, y),
+                Cursor = Cursors.Hand
+            };
+            btnBuscarDolar.FlatAppearance.BorderSize = 0;
+            var lblDolarStatus = new Label { Text = "", Font = fontSmall, Location = new System.Drawing.Point(342, y + 5), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(140, 140, 155) };
+            config.Controls.Add(btnBuscarDolar);
+            config.Controls.Add(lblDolarStatus);
+
+            btnBuscarDolar.Click += async (s, args) =>
+            {
+                btnBuscarDolar.Enabled = false;
+                btnBuscarDolar.Text = "Buscando...";
+                lblDolarStatus.Text = "";
+                try
+                {
+                    using (var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) })
+                    {
+                        string json = await client.GetStringAsync("https://economia.awesomeapi.com.br/json/last/USD-BRL");
+                        // Parse "bid" value: {"USDBRL":{"bid":"5.234",...}}
+                        var match = System.Text.RegularExpressions.Regex.Match(json, "\"bid\"\\s*:\\s*\"([^\"]+)\"");
+                        if (match.Success)
+                        {
+                            txtDolar.Text = match.Groups[1].Value;
+                            lblDolarStatus.Text = "Atualizado!";
+                            lblDolarStatus.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
+                        }
+                        else
+                        {
+                            lblDolarStatus.Text = "Erro no parse";
+                            lblDolarStatus.ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                        }
+                    }
+                }
+                catch
+                {
+                    lblDolarStatus.Text = "Erro na conexão";
+                    lblDolarStatus.ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                }
+                finally
+                {
+                    btnBuscarDolar.Enabled = true;
+                    btnBuscarDolar.Text = "Buscar Online";
+                }
+            };
+
+            y += 38;
+
+            // Separator
+            config.Controls.Add(new Label { Location = new System.Drawing.Point(12, y), Size = new System.Drawing.Size(420, 1), BackColor = System.Drawing.Color.FromArgb(60, 60, 70) });
+            y += 10;
+
+            // === Fórmulas ===
+            config.Controls.Add(new Label { Text = "FÓRMULAS DE PREÇO", Font = fontTitle, Location = new System.Drawing.Point(12, y), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
+            y += 22;
+
+            string[] tierNames = { "Ticket Baixo (< $5 / < R$25):", "Ticket Médio ($5 ~ $20):", "Ticket Alto (> $20):" };
+            string[] defaultFormulas = { "((P*2)*1.5)*1.15", "((P*2)*1.15)*1.15", "(P*2)*1.15" };
+            var txtFormulas = new TextBox[3];
+
+            for (int i = 0; i < 3; i++)
+            {
+                config.Controls.Add(new Label { Text = tierNames[i], Font = fontSmall, Location = new System.Drawing.Point(12, y + 2), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(170, 170, 185) });
+                y += 18;
+
+                txtFormulas[i] = new TextBox { Font = font, Text = formulas[i], Location = new System.Drawing.Point(12, y), Size = new System.Drawing.Size(340, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+                config.Controls.Add(txtFormulas[i]);
+
+                int idx = i;
+                var btnRestore = new Button { Text = "↺", Font = font, FlatStyle = FlatStyle.Flat, Size = new System.Drawing.Size(28, 23), Location = new System.Drawing.Point(358, y), BackColor = ThemeEditor.ButtonsBackground, ForeColor = ThemeEditor.ButtonsForeground, Cursor = Cursors.Hand };
+                btnRestore.FlatAppearance.BorderSize = 0;
+                btnRestore.Click += (s, args) => txtFormulas[idx].Text = defaultFormulas[idx];
+                config.Controls.Add(btnRestore);
+                y += 30;
+            }
+
+            // Helper text
+            config.Controls.Add(new Label { Text = "P = Preço do Fornecedor em REAIS. Operadores: +, -, *, /, ()", Font = fontSmall, Location = new System.Drawing.Point(12, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(100, 100, 115) });
+            y += 25;
+
+            // === SALVAR button ===
+            var btnSalvar = new Button
+            {
+                Text = "SALVAR",
+                Font = fontBold,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = System.Drawing.Color.FromArgb(0, 110, 70),
+                ForeColor = System.Drawing.Color.White,
+                Size = new System.Drawing.Size(120, 30),
+                Location = new System.Drawing.Point(12, y),
+                Cursor = Cursors.Hand
+            };
+            btnSalvar.FlatAppearance.BorderSize = 0;
+            var lblSaveStatus = new Label { Text = "", Font = fontSmall, Location = new System.Drawing.Point(140, y + 9), AutoSize = true };
+            config.Controls.Add(btnSalvar);
+            config.Controls.Add(lblSaveStatus);
+
             btnSalvar.Click += (s, args) =>
             {
+                // Update the shared arrays so calculator popup uses new values
+                formulas[0] = txtFormulas[0].Text;
+                formulas[1] = txtFormulas[1].Text;
+                formulas[2] = txtFormulas[2].Text;
+                dolarRef[0] = txtDolar.Text;
+
+                // Persist to INI
                 General.Set("CalcFormulaBaixo", txtFormulas[0].Text);
                 General.Set("CalcFormulaMedio", txtFormulas[1].Text);
                 General.Set("CalcFormulaAlto", txtFormulas[2].Text);
                 General.Set("CalcValorDolar", txtDolar.Text);
                 IniSettings.Save("RAMSettings.ini");
-                lblStatus.Text = "Fórmulas salvas!";
-                lblStatus.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
+
+                lblSaveStatus.Text = "Salvo!";
+                lblSaveStatus.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
             };
 
-            popup.ShowDialog(this);
+            config.ShowDialog(this);
         }
 
         private void HistoryIcon_MouseHover(object sender, EventArgs e) => RGForm.ShowForm();
