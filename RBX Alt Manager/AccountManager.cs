@@ -89,12 +89,27 @@ namespace RBX_Alt_Manager
         // Hotkey por conta específica
         private static Dictionary<long, int> _accountHotkeyIds = new Dictionary<long, int>();
         private static int _nextAccountHotkeyId = 0x1000;
-        
+
+        // Bring to Front hotkey
+        private int _bringToFrontHotkeyId = 0;
+        private const int BRING_TO_FRONT_HOTKEY_BASE = 0x200;
+
+        // Roblox Mute Timer
+        private System.Windows.Forms.Timer _robloxMuteTimer;
+
         [DllImport("user32.dll")]
         private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
-        
+
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        private const int SW_RESTORE = 9;
         
         public static void IncrementRequestCount(int count = 1)
         {
@@ -800,6 +815,92 @@ namespace RBX_Alt_Manager
         }
 
         /// <summary>
+        /// Liga/desliga timer que muta processos Roblox
+        /// </summary>
+        public void UpdateRobloxMuteTimer(bool enabled)
+        {
+            if (enabled)
+            {
+                if (_robloxMuteTimer == null)
+                {
+                    _robloxMuteTimer = new System.Windows.Forms.Timer();
+                    _robloxMuteTimer.Interval = 3000;
+                    _robloxMuteTimer.Tick += (s, e) => Classes.AudioHelper.MuteAllRobloxProcesses();
+                }
+                _robloxMuteTimer.Start();
+                // Mutar imediatamente também
+                Classes.AudioHelper.MuteAllRobloxProcesses();
+            }
+            else
+            {
+                _robloxMuteTimer?.Stop();
+            }
+        }
+
+        /// <summary>
+        /// Atualiza a hotkey global para trazer janela na frente
+        /// </summary>
+        public void UpdateBringToFrontHotkey(string hotkeyName)
+        {
+            // Remover hotkey anterior
+            if (_bringToFrontHotkeyId != 0)
+            {
+                UnregisterHotKey(Handle, _bringToFrontHotkeyId);
+                _bringToFrontHotkeyId = 0;
+            }
+
+            if (hotkeyName == "Desativado" || string.IsNullOrEmpty(hotkeyName))
+                return;
+
+            uint vk = 0;
+            uint modifiers = 0;
+
+            if (hotkeyName.StartsWith("Ctrl+Shift+"))
+            {
+                modifiers = MOD_CONTROL | MOD_SHIFT;
+                string key = hotkeyName.Replace("Ctrl+Shift+", "");
+                switch (key)
+                {
+                    case "B": vk = 0x42; break;
+                    case "M": vk = 0x4D; break;
+                    default: return;
+                }
+            }
+            else
+            {
+                switch (hotkeyName)
+                {
+                    case "F1": vk = 0x70; break;
+                    case "F2": vk = 0x71; break;
+                    case "F3": vk = 0x72; break;
+                    case "F4": vk = 0x73; break;
+                    case "F5": vk = 0x74; break;
+                    case "F6": vk = 0x75; break;
+                    case "F7": vk = 0x76; break;
+                    case "F8": vk = 0x77; break;
+                    case "F9": vk = 0x78; break;
+                    case "F10": vk = 0x79; break;
+                    case "F11": vk = 0x7A; break;
+                    case "F12": vk = 0x7B; break;
+                    default: return;
+                }
+            }
+
+            _bringToFrontHotkeyId = BRING_TO_FRONT_HOTKEY_BASE + (int)vk;
+            RegisterHotKey(Handle, _bringToFrontHotkeyId, modifiers, vk);
+        }
+
+        /// <summary>
+        /// Restaura e traz a janela do app para frente
+        /// </summary>
+        private void BringAppToFront()
+        {
+            ShowWindow(Handle, SW_RESTORE);
+            SetForegroundWindow(Handle);
+            BringToFront();
+        }
+
+        /// <summary>
         /// Processa mensagens do Windows (para hotkey global)
         /// </summary>
         protected override void WndProc(ref Message m)
@@ -817,6 +918,11 @@ namespace RBX_Alt_Manager
                 else if (hotkeyId == _addFriendHotkeyId)
                 {
                     ExecuteAddFriendHotkey();
+                }
+                // Hotkey Bring to Front
+                else if (hotkeyId == _bringToFrontHotkeyId)
+                {
+                    BringAppToFront();
                 }
                 // Hotkey de conta específica
                 else
@@ -1467,6 +1573,15 @@ namespace RBX_Alt_Manager
             if (!string.IsNullOrEmpty(savedHotkey) && savedHotkey != "Desativado")
                 UpdateTwoFAHotkey(savedHotkey);
 
+            // Inicializar mute Roblox
+            if (General.Get<bool>("MuteRoblox"))
+                UpdateRobloxMuteTimer(true);
+
+            // Inicializar hotkey Bring to Front
+            string savedBringToFrontHotkey = General.Get<string>("BringToFrontHotkey");
+            if (!string.IsNullOrEmpty(savedBringToFrontHotkey) && savedBringToFrontHotkey != "Desativado")
+                UpdateBringToFrontHotkey(savedBringToFrontHotkey);
+
             if (!General.Get<bool>("DisableAgingAlert"))
                 Username.Renderer = new AccountRenderer();
 
@@ -1559,6 +1674,16 @@ namespace RBX_Alt_Manager
             AccountsView.CellEditActivation = ObjectListView.CellEditActivateMode.DoubleClick;
 
             Controls.ApplyTheme();
+
+            // Painéis que não são tratados pelo ApplyTheme extension (Panel não tem handler)
+            GameSelectorPanel.BackColor = ThemeEditor.FormsBackground;
+            EstoquePanel.BackColor = ThemeEditor.FormsBackground;
+            EstoqueTitleLabel.BackColor = ThemeEditor.HeaderBackground;
+            EstoqueRefreshButton.BackColor = ThemeEditor.HeaderBackground;
+
+            // Preservar cor terminal do DebugLog
+            DebugLogTextBox.BackColor = ThemeEditor.TextBoxesBackground;
+            DebugLogTextBox.ForeColor = Color.LightGreen;
 
             afform.ApplyTheme();
             ServerListForm.ApplyTheme();
@@ -3518,7 +3643,7 @@ namespace RBX_Alt_Manager
             var username = friend.Username ?? friend.DisplayName ?? "???";
             usernameLabel.Text = "@" + (username.Length > 10 ? username.Substring(0, 10) + ".." : username);
             usernameLabel.Font = new System.Drawing.Font("Segoe UI", 6F);
-            usernameLabel.ForeColor = System.Drawing.Color.FromArgb(180, 180, 180); // Cinza claro
+            usernameLabel.ForeColor = ControlPaint.Dark(ThemeEditor.FormsForeground, 0.2f);
             usernameLabel.BackColor = System.Drawing.Color.Transparent;
             usernameLabel.Location = new System.Drawing.Point(1, 57);
             usernameLabel.Size = new System.Drawing.Size(76, 12);
@@ -5095,6 +5220,14 @@ namespace RBX_Alt_Manager
             Classes.InventorySyncService.Instance.Stop();
             AltManagerWS?.Stop();
 
+            // Limpar hotkey Bring to Front
+            if (_bringToFrontHotkeyId != 0)
+                UnregisterHotKey(Handle, _bringToFrontHotkeyId);
+
+            // Parar timer de mute
+            _robloxMuteTimer?.Stop();
+            _robloxMuteTimer?.Dispose();
+
             // Matar processos zumbis do Roblox ao fechar o app
             if (General.Get<bool>("CloseRobloxOnExit"))
             {
@@ -5917,9 +6050,8 @@ namespace RBX_Alt_Manager
             SettingsForm.Left = Right;
         }
 
-        private void LogsButton_Click(object sender, EventArgs e)
+        public void ShowLogsPopup()
         {
-            // Criar popup com logs
             Form logsPopup = new Form();
             logsPopup.Text = "📋 Logs - Blox Brasil";
             logsPopup.Size = new System.Drawing.Size(800, 600);
@@ -5930,13 +6062,12 @@ namespace RBX_Alt_Manager
             RichTextBox logsTextBox = new RichTextBox();
             logsTextBox.Dock = DockStyle.Fill;
             logsTextBox.BackColor = ThemeEditor.TextBoxesBackground;
-            logsTextBox.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153); // Semantic: terminal green
+            logsTextBox.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
             logsTextBox.Font = new System.Drawing.Font("Consolas", 10F);
             logsTextBox.ReadOnly = true;
             logsTextBox.BorderStyle = BorderStyle.None;
             logsTextBox.Text = DebugLogTextBox.Text;
 
-            // Botão para fechar
             Button closeButton = new Button();
             closeButton.Text = "FECHAR";
             closeButton.Dock = DockStyle.Bottom;
@@ -5950,6 +6081,521 @@ namespace RBX_Alt_Manager
             logsPopup.Controls.Add(logsTextBox);
             logsPopup.Controls.Add(closeButton);
             logsPopup.ShowDialog(this);
+        }
+
+        private void DescarteButton_Click(object sender, EventArgs e)
+        {
+            ShowDescartePopup();
+        }
+
+        private void ShowDescartePopup()
+        {
+            Form popup = new Form();
+            popup.Text = "🗑️ Descarte de Contas";
+            popup.Size = new System.Drawing.Size(700, 550);
+            popup.MinimumSize = new System.Drawing.Size(500, 400);
+            popup.StartPosition = FormStartPosition.CenterParent;
+            popup.BackColor = ThemeEditor.FormsBackground;
+            popup.ForeColor = ThemeEditor.FormsForeground;
+            popup.MaximizeBox = false;
+            popup.MinimizeBox = false;
+            popup.Icon = this.Icon;
+
+            var font = new System.Drawing.Font("Segoe UI", 9F);
+            var fontSmall = new System.Drawing.Font("Segoe UI", 7.5F);
+            var fontBold = new System.Drawing.Font("Segoe UI Semibold", 9F);
+
+            // ===== Painel superior (formulário) =====
+            var formPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 195,
+                BackColor = ThemeEditor.FormsBackground
+            };
+
+            int y = 8;
+            int labelWidth = 55;
+            int fieldX = 68;
+            int fieldWidth = 120;
+
+            // Login
+            var lblLogin = new Label { Text = "Login:", Font = font, Location = new System.Drawing.Point(8, y + 3), Size = new System.Drawing.Size(labelWidth, 20), ForeColor = ThemeEditor.FormsForeground };
+            var txtLogin = new TextBox { Font = font, Location = new System.Drawing.Point(fieldX, y), Size = new System.Drawing.Size(fieldWidth, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+            formPanel.Controls.Add(lblLogin);
+            formPanel.Controls.Add(txtLogin);
+            y += 28;
+
+            // Senha
+            var lblSenha = new Label { Text = "Senha:", Font = font, Location = new System.Drawing.Point(8, y + 3), Size = new System.Drawing.Size(labelWidth, 20), ForeColor = ThemeEditor.FormsForeground };
+            var txtSenha = new TextBox { Font = font, Location = new System.Drawing.Point(fieldX, y), Size = new System.Drawing.Size(fieldWidth, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+            formPanel.Controls.Add(lblSenha);
+            formPanel.Controls.Add(txtSenha);
+            y += 28;
+
+            // Cookie
+            var lblCookie = new Label { Text = "Cookie:", Font = font, Location = new System.Drawing.Point(8, y + 3), Size = new System.Drawing.Size(labelWidth, 20), ForeColor = ThemeEditor.FormsForeground };
+            var txtCookie = new TextBox { Font = font, Location = new System.Drawing.Point(fieldX, y), Size = new System.Drawing.Size(fieldWidth, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+            formPanel.Controls.Add(lblCookie);
+            formPanel.Controls.Add(txtCookie);
+            y += 28;
+
+            // Motivo
+            var lblMotivo = new Label { Text = "Motivo:", Font = font, Location = new System.Drawing.Point(8, y + 3), Size = new System.Drawing.Size(labelWidth, 20), ForeColor = ThemeEditor.FormsForeground };
+            var txtMotivo = new TextBox { Font = font, Location = new System.Drawing.Point(fieldX, y), Size = new System.Drawing.Size(fieldWidth, 40), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground, Multiline = true, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+            formPanel.Controls.Add(lblMotivo);
+            formPanel.Controls.Add(txtMotivo);
+            y += 48;
+
+            // Botões + Status (na mesma linha)
+            var btnSalvar = new Button
+            {
+                Text = "SALVAR DESCARTE",
+                Font = fontBold,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = System.Drawing.Color.FromArgb(140, 60, 60),
+                ForeColor = System.Drawing.Color.White,
+                Size = new System.Drawing.Size(150, 28),
+                Location = new System.Drawing.Point(8, y),
+                Cursor = Cursors.Hand
+            };
+            btnSalvar.FlatAppearance.BorderSize = 0;
+
+            var btnFechar = new Button
+            {
+                Text = "FECHAR",
+                Font = fontBold,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = ThemeEditor.ButtonsBackground,
+                ForeColor = ThemeEditor.ButtonsForeground,
+                Size = new System.Drawing.Size(90, 28),
+                Location = new System.Drawing.Point(165, y),
+                Cursor = Cursors.Hand
+            };
+            btnFechar.FlatAppearance.BorderSize = 0;
+            btnFechar.Click += (s, args) => popup.Close();
+
+            var lblStatus = new Label { Text = "", Font = fontSmall, Location = new System.Drawing.Point(265, y + 6), Size = new System.Drawing.Size(400, 18), ForeColor = System.Drawing.Color.FromArgb(52, 211, 153), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+
+            formPanel.Controls.Add(btnSalvar);
+            formPanel.Controls.Add(btnFechar);
+            formPanel.Controls.Add(lblStatus);
+
+            // ===== Separador =====
+            var separator = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = System.Drawing.Color.FromArgb(60, 60, 70)
+            };
+
+            // ===== Label do título da lista =====
+            var lblListTitle = new Label
+            {
+                Text = "Contas Descartadas — carregando...",
+                Font = fontBold,
+                ForeColor = ThemeEditor.FormsForeground,
+                Dock = DockStyle.Top,
+                Height = 22,
+                Padding = new Padding(8, 4, 0, 0)
+            };
+
+            // ===== ListView =====
+            var listView = new ListView
+            {
+                Dock = DockStyle.Fill,
+                View = View.Details,
+                FullRowSelect = true,
+                GridLines = false,
+                BackColor = ThemeEditor.TextBoxesBackground,
+                ForeColor = ThemeEditor.TextBoxesForeground,
+                Font = fontSmall,
+                BorderStyle = BorderStyle.None,
+                HeaderStyle = ColumnHeaderStyle.Nonclickable
+            };
+            listView.Columns.Add("Login", 130);
+            listView.Columns.Add("Senha", 100);
+            listView.Columns.Add("Cookie", 120);
+            listView.Columns.Add("Motivo", 180);
+            listView.Columns.Add("Data", 110);
+
+            // Menu de contexto para a lista
+            var listContextMenu = new ContextMenuStrip();
+            listContextMenu.BackColor = ThemeEditor.ItemBackground;
+            listContextMenu.ForeColor = ThemeEditor.FormsForeground;
+
+            var copyLoginItem = new ToolStripMenuItem("📋 Copiar Login(s)");
+            copyLoginItem.Click += (s, args) =>
+            {
+                if (listView.SelectedItems.Count == 0) return;
+                var lines = new System.Collections.Generic.List<string>();
+                foreach (ListViewItem item in listView.SelectedItems)
+                    lines.Add(item.Text);
+                try { Clipboard.SetText(string.Join(Environment.NewLine, lines)); } catch { }
+            };
+
+            var copySenhaItem = new ToolStripMenuItem("📋 Copiar Senha(s)");
+            copySenhaItem.Click += (s, args) =>
+            {
+                if (listView.SelectedItems.Count == 0) return;
+                var lines = new System.Collections.Generic.List<string>();
+                foreach (ListViewItem item in listView.SelectedItems)
+                    lines.Add(item.SubItems[1].Text);
+                try { Clipboard.SetText(string.Join(Environment.NewLine, lines)); } catch { }
+            };
+
+            var copyCookieItem = new ToolStripMenuItem("📋 Copiar Cookie(s)");
+            copyCookieItem.Click += (s, args) =>
+            {
+                if (listView.SelectedItems.Count == 0) return;
+                var lines = new System.Collections.Generic.List<string>();
+                foreach (ListViewItem item in listView.SelectedItems)
+                    lines.Add(item.SubItems[2].Text);
+                try { Clipboard.SetText(string.Join(Environment.NewLine, lines)); } catch { }
+            };
+
+            var copyAllItem = new ToolStripMenuItem("📋 Copiar Tudo (login:senha:cookie)");
+            copyAllItem.Click += (s, args) =>
+            {
+                if (listView.SelectedItems.Count == 0) return;
+                var lines = new System.Collections.Generic.List<string>();
+                foreach (ListViewItem item in listView.SelectedItems)
+                    lines.Add($"{item.Text}:{item.SubItems[1].Text}:{item.SubItems[2].Text}");
+                try { Clipboard.SetText(string.Join(Environment.NewLine, lines)); } catch { }
+            };
+
+            var deleteItem = new ToolStripMenuItem("🗑️ Remover");
+            deleteItem.Click += async (s, args) =>
+            {
+                if (listView.SelectedItems.Count == 0) return;
+                int count = listView.SelectedItems.Count;
+
+                string msg = count == 1
+                    ? $"Remover '{listView.SelectedItems[0].Text}' da lista de descarte?"
+                    : $"Remover {count} contas da lista de descarte?";
+
+                var confirm = MessageBox.Show(msg, "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (confirm != DialogResult.Yes) return;
+
+                var toRemove = new System.Collections.Generic.List<ListViewItem>();
+                foreach (ListViewItem item in listView.SelectedItems)
+                    toRemove.Add(item);
+
+                foreach (var item in toRemove)
+                {
+                    int id = (int)item.Tag;
+                    bool success = await Classes.SupabaseManager.Instance.DeleteDiscardedAccountAsync(id);
+                    if (success)
+                        listView.Items.Remove(item);
+                }
+
+                lblListTitle.Text = $"Contas Descartadas ({listView.Items.Count})";
+            };
+
+            listContextMenu.Items.AddRange(new ToolStripItem[] { copyLoginItem, copySenhaItem, copyCookieItem, copyAllItem, new ToolStripSeparator(), deleteItem });
+            listView.ContextMenuStrip = listContextMenu;
+
+            // Montar form: ordem importa (Fill deve ser adicionado primeiro)
+            popup.Controls.Add(listView);
+            popup.Controls.Add(lblListTitle);
+            popup.Controls.Add(separator);
+            popup.Controls.Add(formPanel);
+
+            // Carregar lista
+            Func<System.Threading.Tasks.Task> loadList = async () =>
+            {
+                var accounts = await Classes.SupabaseManager.Instance.GetDiscardedAccountsAsync();
+                listView.Items.Clear();
+                foreach (var acc in accounts)
+                {
+                    var item = new ListViewItem(acc.Login);
+                    item.SubItems.Add(acc.Password ?? "");
+                    item.SubItems.Add(acc.Cookie ?? "");
+                    item.SubItems.Add(acc.Reason ?? "");
+                    item.SubItems.Add(acc.CreatedAt.ToLocalTime().ToString("dd/MM/yy HH:mm"));
+                    item.Tag = acc.Id;
+                    listView.Items.Add(item);
+                }
+                lblListTitle.Text = $"Contas Descartadas ({accounts.Count})";
+            };
+
+            // Salvar
+            btnSalvar.Click += async (s, args) =>
+            {
+                string login = txtLogin.Text.Trim();
+                string senha = txtSenha.Text.Trim();
+                string cookie = txtCookie.Text.Trim();
+                string motivo = txtMotivo.Text.Trim();
+
+                if (string.IsNullOrEmpty(login))
+                {
+                    MessageBox.Show("Preencha o login.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                btnSalvar.Enabled = false;
+                btnSalvar.Text = "Salvando...";
+                lblStatus.Text = "";
+
+                try
+                {
+                    bool success = await Classes.SupabaseManager.Instance.AddDiscardedAccountAsync(login, senha, cookie, motivo);
+                    if (success)
+                    {
+                        lblStatus.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
+                        lblStatus.Text = $"'{login}' descartada!";
+                        txtLogin.Clear();
+                        txtSenha.Clear();
+                        txtCookie.Clear();
+                        txtMotivo.Clear();
+                        txtLogin.Focus();
+                        await loadList();
+                    }
+                    else
+                    {
+                        lblStatus.ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                        lblStatus.Text = "Erro ao salvar no Supabase.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lblStatus.ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                    lblStatus.Text = $"Erro: {ex.Message}";
+                }
+                finally
+                {
+                    btnSalvar.Enabled = true;
+                    btnSalvar.Text = "SALVAR DESCARTE";
+                }
+            };
+
+            // Carregar ao abrir
+            popup.Load += async (s, args) => await loadList();
+
+            popup.ShowDialog(this);
+        }
+
+        public void ShowCalculadoraPopup()
+        {
+            Form popup = new Form();
+            popup.Text = "Calculadora de Preços";
+            popup.Size = new System.Drawing.Size(530, 470);
+            popup.StartPosition = FormStartPosition.CenterParent;
+            popup.BackColor = ThemeEditor.FormsBackground;
+            popup.ForeColor = ThemeEditor.FormsForeground;
+            popup.MaximizeBox = false;
+            popup.MinimizeBox = false;
+            popup.FormBorderStyle = FormBorderStyle.FixedDialog;
+            popup.Icon = this.Icon;
+
+            var font = new System.Drawing.Font("Segoe UI", 9F);
+            var fontBold = new System.Drawing.Font("Segoe UI Semibold", 9F);
+            var fontSmall = new System.Drawing.Font("Segoe UI", 7.5F);
+            var fontTitle = new System.Drawing.Font("Segoe UI Semibold", 9.5F);
+            var ptBR = new System.Globalization.CultureInfo("pt-BR");
+
+            // Load saved values
+            string formulaBaixo = General.Get<string>("CalcFormulaBaixo");
+            if (string.IsNullOrEmpty(formulaBaixo)) formulaBaixo = "((P*2)*1.5)*1.15";
+            string formulaMedio = General.Get<string>("CalcFormulaMedio");
+            if (string.IsNullOrEmpty(formulaMedio)) formulaMedio = "((P*2)*1.15)*1.15";
+            string formulaAlto = General.Get<string>("CalcFormulaAlto");
+            if (string.IsNullOrEmpty(formulaAlto)) formulaAlto = "(P*2)*1.15";
+            string savedDolar = General.Get<string>("CalcValorDolar");
+            if (string.IsNullOrEmpty(savedDolar)) savedDolar = "5.70";
+
+            int y = 12;
+
+            // === Valor do Dólar ===
+            popup.Controls.Add(new Label { Text = "Valor do Dólar (R$):", Font = font, Location = new System.Drawing.Point(12, y + 3), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
+            var txtDolar = new TextBox { Font = font, Text = savedDolar, Location = new System.Drawing.Point(170, y), Size = new System.Drawing.Size(80, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+            popup.Controls.Add(txtDolar);
+            y += 30;
+
+            // === Preço Fornecedor ===
+            popup.Controls.Add(new Label { Text = "Preço Fornecedor (R$):", Font = font, Location = new System.Drawing.Point(12, y + 3), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
+            var txtPreco = new TextBox { Font = font, Location = new System.Drawing.Point(170, y), Size = new System.Drawing.Size(80, 23), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+            var lblPrecoUSD = new Label { Text = "(USD: --)", Font = fontSmall, Location = new System.Drawing.Point(260, y + 5), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(140, 140, 155) };
+            popup.Controls.Add(txtPreco);
+            popup.Controls.Add(lblPrecoUSD);
+            y += 35;
+
+            // === CALCULAR button ===
+            var btnCalcular = new Button
+            {
+                Text = "CALCULAR",
+                Font = fontBold,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = System.Drawing.Color.FromArgb(0, 110, 70),
+                ForeColor = System.Drawing.Color.White,
+                Size = new System.Drawing.Size(110, 28),
+                Location = new System.Drawing.Point(12, y),
+                Cursor = Cursors.Hand
+            };
+            btnCalcular.FlatAppearance.BorderSize = 0;
+            var lblTierIndicator = new Label { Text = "", Font = fontSmall, Location = new System.Drawing.Point(130, y + 8), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(52, 211, 153) };
+            popup.Controls.Add(btnCalcular);
+            popup.Controls.Add(lblTierIndicator);
+            y += 40;
+
+            // Separator
+            popup.Controls.Add(new Label { Location = new System.Drawing.Point(12, y), Size = new System.Drawing.Size(490, 1), BackColor = System.Drawing.Color.FromArgb(60, 60, 70) });
+            y += 8;
+
+            // === 3 Tiers ===
+            var txtFormulas = new TextBox[3];
+            var lblResultsReal = new Label[3];
+            var lblResultsDolar = new Label[3];
+            var lblTierTitles = new Label[3];
+
+            string[] tierNames = { "TICKET BAIXO (< $5 / < R$25)", "TICKET MÉDIO ($5 ~ $20)", "TICKET ALTO (> $20)" };
+            string[] formulas = { formulaBaixo, formulaMedio, formulaAlto };
+            string[] defaultFormulas = { "((P*2)*1.5)*1.15", "((P*2)*1.15)*1.15", "(P*2)*1.15" };
+
+            for (int i = 0; i < 3; i++)
+            {
+                // Tier title
+                lblTierTitles[i] = new Label { Text = tierNames[i], Font = fontTitle, Location = new System.Drawing.Point(12, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(170, 170, 185) };
+                popup.Controls.Add(lblTierTitles[i]);
+                y += 22;
+
+                // Formula row
+                popup.Controls.Add(new Label { Text = "Fórmula:", Font = fontSmall, Location = new System.Drawing.Point(12, y + 3), AutoSize = true, ForeColor = ThemeEditor.FormsForeground });
+                txtFormulas[i] = new TextBox { Font = fontSmall, Text = formulas[i], Location = new System.Drawing.Point(68, y), Size = new System.Drawing.Size(220, 21), BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+                popup.Controls.Add(txtFormulas[i]);
+
+                int idx = i;
+                var btnRestore = new Button { Text = "↺", Font = font, FlatStyle = FlatStyle.Flat, Size = new System.Drawing.Size(24, 21), Location = new System.Drawing.Point(293, y), BackColor = ThemeEditor.ButtonsBackground, ForeColor = ThemeEditor.ButtonsForeground, Cursor = Cursors.Hand };
+                btnRestore.FlatAppearance.BorderSize = 0;
+                btnRestore.Click += (s, args) => txtFormulas[idx].Text = defaultFormulas[idx];
+                popup.Controls.Add(btnRestore);
+                y += 24;
+
+                // Results row
+                lblResultsReal[i] = new Label { Text = "R$: --", Font = fontBold, Location = new System.Drawing.Point(22, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(52, 211, 153) };
+                lblResultsDolar[i] = new Label { Text = "$: --", Font = fontBold, Location = new System.Drawing.Point(200, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(100, 180, 255) };
+                popup.Controls.Add(lblResultsReal[i]);
+                popup.Controls.Add(lblResultsDolar[i]);
+                y += 25;
+
+                if (i < 2)
+                {
+                    popup.Controls.Add(new Label { Location = new System.Drawing.Point(12, y), Size = new System.Drawing.Size(490, 1), BackColor = System.Drawing.Color.FromArgb(50, 50, 60) });
+                    y += 6;
+                }
+            }
+            y += 8;
+
+            // Helper text
+            popup.Controls.Add(new Label { Text = "P = Preço Fornecedor. Use: +, -, *, /, ()", Font = fontSmall, Location = new System.Drawing.Point(12, y), AutoSize = true, ForeColor = System.Drawing.Color.FromArgb(100, 100, 115) });
+            y += 20;
+
+            // SALVAR FÓRMULAS button
+            var btnSalvar = new Button
+            {
+                Text = "SALVAR FÓRMULAS",
+                Font = fontBold,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = ThemeEditor.ButtonsBackground,
+                ForeColor = ThemeEditor.ButtonsForeground,
+                Size = new System.Drawing.Size(140, 28),
+                Location = new System.Drawing.Point(12, y),
+                Cursor = Cursors.Hand
+            };
+            btnSalvar.FlatAppearance.BorderSize = 0;
+            var lblStatus = new Label { Text = "", Font = fontSmall, Location = new System.Drawing.Point(160, y + 7), AutoSize = true };
+            popup.Controls.Add(btnSalvar);
+            popup.Controls.Add(lblStatus);
+
+            // Formula evaluator using DataTable.Compute
+            Func<string, double, double> evalFormula = (formula, price) =>
+            {
+                try
+                {
+                    string normalized = formula.Replace(",", ".");
+                    string expr = normalized.Replace("P", price.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    var dt = new System.Data.DataTable();
+                    return Convert.ToDouble(dt.Compute(expr, ""));
+                }
+                catch { return -1; }
+            };
+
+            // Calculate action
+            Action doCalculate = () =>
+            {
+                double dolar, preco;
+                string dolarText = txtDolar.Text.Replace(",", ".");
+                string precoText = txtPreco.Text.Replace(",", ".");
+
+                if (!double.TryParse(dolarText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out dolar) || dolar <= 0)
+                {
+                    lblTierIndicator.Text = "Valor do dólar inválido";
+                    lblTierIndicator.ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                    return;
+                }
+                if (!double.TryParse(precoText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out preco) || preco <= 0)
+                {
+                    lblTierIndicator.Text = "Preço inválido";
+                    lblTierIndicator.ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                    return;
+                }
+
+                double precoUSD = preco / dolar;
+                lblPrecoUSD.Text = $"(USD: ${precoUSD:F2})";
+
+                int activeTier = precoUSD < 5 ? 0 : (precoUSD < 20 ? 1 : 2);
+                string[] tierLabels = { "→ Ticket Baixo", "→ Ticket Médio", "→ Ticket Alto" };
+                lblTierIndicator.Text = tierLabels[activeTier];
+                lblTierIndicator.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
+
+                for (int i = 0; i < 3; i++)
+                {
+                    double siteReal = evalFormula(txtFormulas[i].Text, preco);
+                    if (siteReal < 0)
+                    {
+                        lblResultsReal[i].Text = "R$: ERRO";
+                        lblResultsDolar[i].Text = "$: ERRO";
+                        lblResultsReal[i].ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                        lblResultsDolar[i].ForeColor = System.Drawing.Color.FromArgb(230, 100, 100);
+                    }
+                    else
+                    {
+                        double siteDolar = siteReal / dolar;
+                        lblResultsReal[i].Text = $"R$ {Math.Ceiling(siteReal).ToString("N0", ptBR)}";
+                        lblResultsDolar[i].Text = $"$ {siteDolar:F2}";
+
+                        if (i == activeTier)
+                        {
+                            lblResultsReal[i].ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
+                            lblResultsDolar[i].ForeColor = System.Drawing.Color.FromArgb(100, 180, 255);
+                            lblTierTitles[i].ForeColor = System.Drawing.Color.White;
+                        }
+                        else
+                        {
+                            lblResultsReal[i].ForeColor = System.Drawing.Color.FromArgb(100, 100, 110);
+                            lblResultsDolar[i].ForeColor = System.Drawing.Color.FromArgb(100, 100, 110);
+                            lblTierTitles[i].ForeColor = System.Drawing.Color.FromArgb(100, 100, 110);
+                        }
+                    }
+                }
+            };
+
+            btnCalcular.Click += (s, args) => doCalculate();
+            txtPreco.KeyDown += (s, args) => { if (args.KeyCode == Keys.Enter) { doCalculate(); args.SuppressKeyPress = true; } };
+            txtDolar.KeyDown += (s, args) => { if (args.KeyCode == Keys.Enter) { doCalculate(); args.SuppressKeyPress = true; } };
+
+            // Save formulas
+            btnSalvar.Click += (s, args) =>
+            {
+                General.Set("CalcFormulaBaixo", txtFormulas[0].Text);
+                General.Set("CalcFormulaMedio", txtFormulas[1].Text);
+                General.Set("CalcFormulaAlto", txtFormulas[2].Text);
+                General.Set("CalcValorDolar", txtDolar.Text);
+                IniSettings.Save("RAMSettings.ini");
+                lblStatus.Text = "Fórmulas salvas!";
+                lblStatus.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
+            };
+
+            popup.ShowDialog(this);
         }
 
         private void HistoryIcon_MouseHover(object sender, EventArgs e) => RGForm.ShowForm();

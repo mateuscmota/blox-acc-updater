@@ -399,6 +399,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\AudioHelper.cs" />
     <Compile Include="Classes\Account.cs" />
     <Compile Include="Classes\AccountRenderer.cs">
       <SubType>Component</SubType>

@@ -112,6 +112,37 @@ namespace RBX_Alt_Manager.Forms
         private Button _previewButton1;
         private Button _previewButton2;
 
+        // Snapshot para "Restaurar Original"
+        private struct ThemeSnapshot
+        {
+            public Color AccBg, AccFg, BtnBg, BtnFg, BtnBorder;
+            public FlatStyle BtnStyle;
+            public Color FormBg, FormFg;
+            public bool DarkTop, Headers;
+            public Color TbBg, TbFg, TbBorder;
+            public Color LblBg, LblFg;
+            public bool LblTransp, Light;
+        }
+        private ThemeSnapshot _original;
+
+        private ThemeSnapshot CaptureSnapshot() => new ThemeSnapshot
+        {
+            AccBg = AccountBackground, AccFg = AccountForeground,
+            BtnBg = ButtonsBackground, BtnFg = ButtonsForeground, BtnBorder = ButtonsBorder, BtnStyle = ButtonStyle,
+            FormBg = FormsBackground, FormFg = FormsForeground, DarkTop = UseDarkTopBar, Headers = ShowHeaders,
+            TbBg = TextBoxesBackground, TbFg = TextBoxesForeground, TbBorder = TextBoxesBorder,
+            LblBg = LabelBackground, LblFg = LabelForeground, LblTransp = LabelTransparent, Light = LightImages
+        };
+
+        private void RestoreSnapshot(ThemeSnapshot s)
+        {
+            AccountBackground = s.AccBg; AccountForeground = s.AccFg;
+            ButtonsBackground = s.BtnBg; ButtonsForeground = s.BtnFg; ButtonsBorder = s.BtnBorder; ButtonStyle = s.BtnStyle;
+            FormsBackground = s.FormBg; FormsForeground = s.FormFg; UseDarkTopBar = s.DarkTop; ShowHeaders = s.Headers;
+            TextBoxesBackground = s.TbBg; TextBoxesForeground = s.TbFg; TextBoxesBorder = s.TbBorder;
+            LabelBackground = s.LblBg; LabelForeground = s.LblFg; LabelTransparent = s.LblTransp; LightImages = s.Light;
+        }
+
         public ThemeEditor()
         {
             AccountManager.SetDarkBar(Handle);
@@ -121,6 +152,13 @@ namespace RBX_Alt_Manager.Forms
             BuildEditorPanel();
             SetupPreview();
             ApplyTheme();
+        }
+
+        protected override void OnVisibleChanged(EventArgs e)
+        {
+            base.OnVisibleChanged(e);
+            if (Visible)
+                _original = CaptureSnapshot();
         }
 
         public void ApplyTheme()
@@ -238,6 +276,11 @@ namespace RBX_Alt_Manager.Forms
         private void btnPresetClaro_Click(object sender, EventArgs e) => ApplyPresetClaro();
         private void btnPresetAzul_Click(object sender, EventArgs e) => ApplyPresetAzul();
         private void btnPresetResetar_Click(object sender, EventArgs e) => ApplyPresetResetar();
+        private void btnRestaurar_Click(object sender, EventArgs e)
+        {
+            RestoreSnapshot(_original);
+            OnColorChanged();
+        }
 
         private void btnSalvar_Click(object sender, EventArgs e)
         {

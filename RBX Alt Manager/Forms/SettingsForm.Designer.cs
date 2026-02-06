@@ -40,7 +40,6 @@ namespace RBX_Alt_Manager.Forms
             this.HideMRobloxCB = new System.Windows.Forms.CheckBox();
             this.StartOnPCStartup = new System.Windows.Forms.CheckBox();
             this.MultiRobloxCB = new System.Windows.Forms.CheckBox();
-
             this.MRGLabel = new System.Windows.Forms.Label();
             this.MaxRecentGamesNumber = new System.Windows.Forms.NumericUpDown();
             this.TwoFAHotkeyLabel = new System.Windows.Forms.Label();
@@ -48,7 +47,12 @@ namespace RBX_Alt_Manager.Forms
             this.AddFriendHotkeyLabel = new System.Windows.Forms.Label();
             this.AddFriendHotkeyComboBox = new System.Windows.Forms.ComboBox();
             this.DebugModeCB = new System.Windows.Forms.CheckBox();
+            this.MuteRobloxCB = new System.Windows.Forms.CheckBox();
+            this.BringToFrontHotkeyLabel = new System.Windows.Forms.Label();
+            this.BringToFrontHotkeyComboBox = new System.Windows.Forms.ComboBox();
             this.SyncAccountsButton = new System.Windows.Forms.Button();
+            this.LogsButton = new System.Windows.Forms.Button();
+            this.CalculadoraButton = new System.Windows.Forms.Button();
             this.LogoutButton = new System.Windows.Forms.Button();
             this.Helper = new System.Windows.Forms.ToolTip(this.components);
             this.WSPWLabel = new System.Windows.Forms.Label();
@@ -102,7 +106,6 @@ namespace RBX_Alt_Manager.Forms
             this.SettingsLayoutPanel.Controls.Add(this.HideMRobloxCB);
             this.SettingsLayoutPanel.Controls.Add(this.StartOnPCStartup);
             this.SettingsLayoutPanel.Controls.Add(this.MultiRobloxCB);
-
             this.SettingsLayoutPanel.Controls.Add(this.MRGLabel);
             this.SettingsLayoutPanel.Controls.Add(this.MaxRecentGamesNumber);
             this.SettingsLayoutPanel.Controls.Add(this.TwoFAHotkeyLabel);
@@ -110,13 +113,18 @@ namespace RBX_Alt_Manager.Forms
             this.SettingsLayoutPanel.Controls.Add(this.AddFriendHotkeyLabel);
             this.SettingsLayoutPanel.Controls.Add(this.AddFriendHotkeyComboBox);
             this.SettingsLayoutPanel.Controls.Add(this.DebugModeCB);
+            this.SettingsLayoutPanel.Controls.Add(this.MuteRobloxCB);
+            this.SettingsLayoutPanel.Controls.Add(this.BringToFrontHotkeyLabel);
+            this.SettingsLayoutPanel.Controls.Add(this.BringToFrontHotkeyComboBox);
             this.SettingsLayoutPanel.Controls.Add(this.SyncAccountsButton);
+            this.SettingsLayoutPanel.Controls.Add(this.LogsButton);
+            this.SettingsLayoutPanel.Controls.Add(this.CalculadoraButton);
             this.SettingsLayoutPanel.Controls.Add(this.LogoutButton);
             this.SettingsLayoutPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.SettingsLayoutPanel.Location = new System.Drawing.Point(3, 3);
             this.SettingsLayoutPanel.Name = "SettingsLayoutPanel";
             this.SettingsLayoutPanel.Padding = new System.Windows.Forms.Padding(12);
-            this.SettingsLayoutPanel.Size = new System.Drawing.Size(314, 334);
+            this.SettingsLayoutPanel.Size = new System.Drawing.Size(314, 416);
             this.SettingsLayoutPanel.TabIndex = 0;
             // 
             // AsyncJoinCB
@@ -216,7 +224,7 @@ namespace RBX_Alt_Manager.Forms
             // MRGLabel
             // 
             this.MRGLabel.AutoSize = true;
-            this.MRGLabel.Location = new System.Drawing.Point(15, 154);
+            this.MRGLabel.Location = new System.Drawing.Point(15, 131);
             this.MRGLabel.Margin = new System.Windows.Forms.Padding(3, 4, 3, 0);
             this.MRGLabel.Name = "MRGLabel";
             this.MRGLabel.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
@@ -227,7 +235,7 @@ namespace RBX_Alt_Manager.Forms
             // MaxRecentGamesNumber
             // 
             this.SettingsLayoutPanel.SetFlowBreak(this.MaxRecentGamesNumber, true);
-            this.MaxRecentGamesNumber.Location = new System.Drawing.Point(129, 151);
+            this.MaxRecentGamesNumber.Location = new System.Drawing.Point(129, 128);
             this.MaxRecentGamesNumber.Margin = new System.Windows.Forms.Padding(10, 1, 3, 0);
             this.MaxRecentGamesNumber.Maximum = new decimal(new int[] {
             30,
@@ -252,7 +260,7 @@ namespace RBX_Alt_Manager.Forms
             // TwoFAHotkeyLabel
             // 
             this.TwoFAHotkeyLabel.AutoSize = true;
-            this.TwoFAHotkeyLabel.Location = new System.Drawing.Point(15, 175);
+            this.TwoFAHotkeyLabel.Location = new System.Drawing.Point(15, 152);
             this.TwoFAHotkeyLabel.Margin = new System.Windows.Forms.Padding(3, 4, 3, 0);
             this.TwoFAHotkeyLabel.Name = "TwoFAHotkeyLabel";
             this.TwoFAHotkeyLabel.Size = new System.Drawing.Size(66, 13);
@@ -278,7 +286,7 @@ namespace RBX_Alt_Manager.Forms
             "F10",
             "F11",
             "F12"});
-            this.TwoFAHotkeyComboBox.Location = new System.Drawing.Point(87, 172);
+            this.TwoFAHotkeyComboBox.Location = new System.Drawing.Point(87, 149);
             this.TwoFAHotkeyComboBox.Margin = new System.Windows.Forms.Padding(3, 1, 3, 0);
             this.TwoFAHotkeyComboBox.Name = "TwoFAHotkeyComboBox";
             this.TwoFAHotkeyComboBox.Size = new System.Drawing.Size(90, 21);
@@ -288,7 +296,7 @@ namespace RBX_Alt_Manager.Forms
             // AddFriendHotkeyLabel
             // 
             this.AddFriendHotkeyLabel.AutoSize = true;
-            this.AddFriendHotkeyLabel.Location = new System.Drawing.Point(15, 197);
+            this.AddFriendHotkeyLabel.Location = new System.Drawing.Point(15, 174);
             this.AddFriendHotkeyLabel.Margin = new System.Windows.Forms.Padding(3, 4, 3, 0);
             this.AddFriendHotkeyLabel.Name = "AddFriendHotkeyLabel";
             this.AddFriendHotkeyLabel.Size = new System.Drawing.Size(61, 13);
@@ -317,52 +325,132 @@ namespace RBX_Alt_Manager.Forms
             "F10",
             "F11",
             "F12"});
-            this.AddFriendHotkeyComboBox.Location = new System.Drawing.Point(82, 194);
+            this.AddFriendHotkeyComboBox.Location = new System.Drawing.Point(82, 171);
             this.AddFriendHotkeyComboBox.Margin = new System.Windows.Forms.Padding(3, 1, 3, 0);
             this.AddFriendHotkeyComboBox.Name = "AddFriendHotkeyComboBox";
             this.AddFriendHotkeyComboBox.Size = new System.Drawing.Size(90, 21);
             this.AddFriendHotkeyComboBox.TabIndex = 23;
             this.AddFriendHotkeyComboBox.SelectedIndexChanged += new System.EventHandler(this.AddFriendHotkeyComboBox_SelectedIndexChanged);
-            //
+            // 
             // DebugModeCB
-            //
+            // 
             this.DebugModeCB.AutoSize = true;
             this.SettingsLayoutPanel.SetFlowBreak(this.DebugModeCB, true);
+            this.DebugModeCB.Location = new System.Drawing.Point(15, 195);
             this.DebugModeCB.Name = "DebugModeCB";
-            this.DebugModeCB.Size = new System.Drawing.Size(95, 17);
+            this.DebugModeCB.Size = new System.Drawing.Size(88, 17);
             this.DebugModeCB.TabIndex = 25;
             this.DebugModeCB.Text = "Debug Mode";
             this.DebugModeCB.UseVisualStyleBackColor = true;
             this.DebugModeCB.CheckedChanged += new System.EventHandler(this.DebugModeCB_CheckedChanged);
-            //
+            // 
+            // MuteRobloxCB
+            // 
+            this.MuteRobloxCB.AutoSize = true;
+            this.SettingsLayoutPanel.SetFlowBreak(this.MuteRobloxCB, true);
+            this.MuteRobloxCB.Location = new System.Drawing.Point(15, 218);
+            this.MuteRobloxCB.Name = "MuteRobloxCB";
+            this.MuteRobloxCB.Size = new System.Drawing.Size(127, 17);
+            this.MuteRobloxCB.TabIndex = 27;
+            this.MuteRobloxCB.Text = "Abrir Roblox sem som";
+            this.Helper.SetToolTip(this.MuteRobloxCB, "Muta automaticamente todos os processos do Roblox a cada 3 segundos.");
+            this.MuteRobloxCB.UseVisualStyleBackColor = true;
+            this.MuteRobloxCB.CheckedChanged += new System.EventHandler(this.MuteRobloxCB_CheckedChanged);
+            // 
+            // BringToFrontHotkeyLabel
+            // 
+            this.BringToFrontHotkeyLabel.AutoSize = true;
+            this.BringToFrontHotkeyLabel.Location = new System.Drawing.Point(15, 242);
+            this.BringToFrontHotkeyLabel.Margin = new System.Windows.Forms.Padding(3, 4, 3, 0);
+            this.BringToFrontHotkeyLabel.Name = "BringToFrontHotkeyLabel";
+            this.BringToFrontHotkeyLabel.Size = new System.Drawing.Size(93, 13);
+            this.BringToFrontHotkeyLabel.TabIndex = 28;
+            this.BringToFrontHotkeyLabel.Text = "Hotkey Restaurar:";
+            this.Helper.SetToolTip(this.BringToFrontHotkeyLabel, "Tecla de atalho para trazer a janela do Account Manager para frente.");
+            // 
+            // BringToFrontHotkeyComboBox
+            // 
+            this.BringToFrontHotkeyComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.SettingsLayoutPanel.SetFlowBreak(this.BringToFrontHotkeyComboBox, true);
+            this.BringToFrontHotkeyComboBox.FormattingEnabled = true;
+            this.BringToFrontHotkeyComboBox.Items.AddRange(new object[] {
+            "Desativado",
+            "Ctrl+Shift+B",
+            "Ctrl+Shift+M",
+            "F1",
+            "F2",
+            "F3",
+            "F4",
+            "F5",
+            "F6",
+            "F7",
+            "F8",
+            "F9",
+            "F10",
+            "F11",
+            "F12"});
+            this.BringToFrontHotkeyComboBox.Location = new System.Drawing.Point(114, 239);
+            this.BringToFrontHotkeyComboBox.Margin = new System.Windows.Forms.Padding(3, 1, 3, 0);
+            this.BringToFrontHotkeyComboBox.Name = "BringToFrontHotkeyComboBox";
+            this.BringToFrontHotkeyComboBox.Size = new System.Drawing.Size(110, 21);
+            this.BringToFrontHotkeyComboBox.TabIndex = 29;
+            this.BringToFrontHotkeyComboBox.SelectedIndexChanged += new System.EventHandler(this.BringToFrontHotkeyComboBox_SelectedIndexChanged);
+            // 
             // SyncAccountsButton
             // 
             this.SyncAccountsButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(120)))), ((int)(((byte)(180)))));
             this.SyncAccountsButton.FlatAppearance.BorderSize = 0;
             this.SyncAccountsButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.SyncAccountsButton.ForeColor = System.Drawing.Color.White;
-            this.SyncAccountsButton.Location = new System.Drawing.Point(15, 241);
+            this.SyncAccountsButton.Location = new System.Drawing.Point(15, 263);
             this.SyncAccountsButton.Name = "SyncAccountsButton";
             this.SyncAccountsButton.Size = new System.Drawing.Size(180, 28);
             this.SyncAccountsButton.TabIndex = 25;
             this.SyncAccountsButton.Text = "☁️ Sincronizar Contas (Supabase)";
             this.SyncAccountsButton.UseVisualStyleBackColor = false;
             this.SyncAccountsButton.Click += new System.EventHandler(this.SyncAccountsButton_Click);
+            // 
+            // LogsButton
+            // 
+            this.LogsButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(60)))), ((int)(((byte)(60)))), ((int)(((byte)(80)))));
+            this.LogsButton.FlatAppearance.BorderSize = 0;
+            this.LogsButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.LogsButton.ForeColor = System.Drawing.Color.White;
+            this.LogsButton.Location = new System.Drawing.Point(15, 297);
+            this.LogsButton.Name = "LogsButton";
+            this.LogsButton.Size = new System.Drawing.Size(180, 28);
+            this.LogsButton.TabIndex = 30;
+            this.LogsButton.Text = "📋 Logs";
+            this.LogsButton.UseVisualStyleBackColor = false;
+            this.LogsButton.Click += new System.EventHandler(this.LogsButton_Click);
+            //
+            // CalculadoraButton
+            //
+            this.CalculadoraButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(110)))), ((int)(((byte)(70)))));
+            this.CalculadoraButton.FlatAppearance.BorderSize = 0;
+            this.CalculadoraButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.CalculadoraButton.ForeColor = System.Drawing.Color.White;
+            this.CalculadoraButton.Name = "CalculadoraButton";
+            this.CalculadoraButton.Size = new System.Drawing.Size(180, 28);
+            this.CalculadoraButton.TabIndex = 31;
+            this.CalculadoraButton.Text = "Calculadora";
+            this.CalculadoraButton.UseVisualStyleBackColor = false;
+            this.CalculadoraButton.Click += new System.EventHandler(this.CalculadoraButton_Click);
             //
             // LogoutButton
-            //
+            // 
             this.LogoutButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(180)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
             this.LogoutButton.FlatAppearance.BorderSize = 0;
             this.LogoutButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.LogoutButton.ForeColor = System.Drawing.Color.White;
-            this.LogoutButton.Location = new System.Drawing.Point(15, 275);
+            this.LogoutButton.Location = new System.Drawing.Point(15, 331);
             this.LogoutButton.Name = "LogoutButton";
             this.LogoutButton.Size = new System.Drawing.Size(180, 28);
             this.LogoutButton.TabIndex = 26;
             this.LogoutButton.Text = "DESLOGAR";
             this.LogoutButton.UseVisualStyleBackColor = false;
             this.LogoutButton.Click += new System.EventHandler(this.LogoutButton_Click);
-            //
+            // 
             // WSPWLabel
             // 
             this.WSPWLabel.AutoSize = true;
@@ -393,7 +481,7 @@ namespace RBX_Alt_Manager.Forms
             this.SettingsTC.Location = new System.Drawing.Point(0, 0);
             this.SettingsTC.Name = "SettingsTC";
             this.SettingsTC.SelectedIndex = 0;
-            this.SettingsTC.Size = new System.Drawing.Size(328, 369);
+            this.SettingsTC.Size = new System.Drawing.Size(328, 451);
             this.SettingsTC.TabIndex = 18;
             // 
             // GeneralTab
@@ -402,7 +490,7 @@ namespace RBX_Alt_Manager.Forms
             this.GeneralTab.Location = new System.Drawing.Point(4, 25);
             this.GeneralTab.Name = "GeneralTab";
             this.GeneralTab.Padding = new System.Windows.Forms.Padding(3);
-            this.GeneralTab.Size = new System.Drawing.Size(320, 340);
+            this.GeneralTab.Size = new System.Drawing.Size(320, 422);
             this.GeneralTab.TabIndex = 0;
             this.GeneralTab.Text = "General";
             this.GeneralTab.UseVisualStyleBackColor = true;
@@ -414,7 +502,7 @@ namespace RBX_Alt_Manager.Forms
             this.DeveloperTab.Location = new System.Drawing.Point(4, 25);
             this.DeveloperTab.Name = "DeveloperTab";
             this.DeveloperTab.Padding = new System.Windows.Forms.Padding(3);
-            this.DeveloperTab.Size = new System.Drawing.Size(309, 340);
+            this.DeveloperTab.Size = new System.Drawing.Size(320, 340);
             this.DeveloperTab.TabIndex = 1;
             this.DeveloperTab.Text = "Developer";
             // 
@@ -439,7 +527,7 @@ namespace RBX_Alt_Manager.Forms
             this.DevSettingsLayoutPanel.Location = new System.Drawing.Point(3, 3);
             this.DevSettingsLayoutPanel.Name = "DevSettingsLayoutPanel";
             this.DevSettingsLayoutPanel.Padding = new System.Windows.Forms.Padding(12);
-            this.DevSettingsLayoutPanel.Size = new System.Drawing.Size(303, 334);
+            this.DevSettingsLayoutPanel.Size = new System.Drawing.Size(314, 334);
             this.DevSettingsLayoutPanel.TabIndex = 2;
             // 
             // EnableDMCB
@@ -592,7 +680,7 @@ namespace RBX_Alt_Manager.Forms
             this.MiscellaneousTab.Location = new System.Drawing.Point(4, 25);
             this.MiscellaneousTab.Name = "MiscellaneousTab";
             this.MiscellaneousTab.Padding = new System.Windows.Forms.Padding(3);
-            this.MiscellaneousTab.Size = new System.Drawing.Size(309, 340);
+            this.MiscellaneousTab.Size = new System.Drawing.Size(320, 340);
             this.MiscellaneousTab.TabIndex = 2;
             this.MiscellaneousTab.Text = "Miscellaneous";
             this.MiscellaneousTab.UseVisualStyleBackColor = true;
@@ -611,7 +699,7 @@ namespace RBX_Alt_Manager.Forms
             this.MiscellaneousFlowPanel.Location = new System.Drawing.Point(3, 3);
             this.MiscellaneousFlowPanel.Name = "MiscellaneousFlowPanel";
             this.MiscellaneousFlowPanel.Padding = new System.Windows.Forms.Padding(12);
-            this.MiscellaneousFlowPanel.Size = new System.Drawing.Size(303, 334);
+            this.MiscellaneousFlowPanel.Size = new System.Drawing.Size(314, 334);
             this.MiscellaneousFlowPanel.TabIndex = 1;
             // 
             // PresenceCB
@@ -741,7 +829,7 @@ namespace RBX_Alt_Manager.Forms
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(328, 369);
+            this.ClientSize = new System.Drawing.Size(328, 451);
             this.Controls.Add(this.SettingsTC);
             this.MinimumSize = new System.Drawing.Size(333, 408);
             this.Name = "SettingsForm";
@@ -815,7 +903,12 @@ namespace RBX_Alt_Manager.Forms
         private System.Windows.Forms.Label AddFriendHotkeyLabel;
         private System.Windows.Forms.ComboBox AddFriendHotkeyComboBox;
         private System.Windows.Forms.CheckBox DebugModeCB;
+        private System.Windows.Forms.CheckBox MuteRobloxCB;
+        private System.Windows.Forms.Label BringToFrontHotkeyLabel;
+        private System.Windows.Forms.ComboBox BringToFrontHotkeyComboBox;
         private System.Windows.Forms.Button SyncAccountsButton;
+        private System.Windows.Forms.Button LogsButton;
+        private System.Windows.Forms.Button CalculadoraButton;
         private System.Windows.Forms.Button LogoutButton;
     }
 }

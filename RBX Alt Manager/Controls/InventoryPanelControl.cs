@@ -191,7 +191,7 @@ namespace RBX_Alt_Manager.Controls
         {
             if (_contentPanel == null) return;
 
-            // Atualizar o label de quantidade no painel da conta (se estiver expandido)
+            // Atualizar o label de quantidade e cor do username no painel da conta (se estiver expandido)
             foreach (Control c in _contentPanel.Controls)
             {
                 if (c is Panel p && p.Tag is SupabaseInventoryEntry inv && inv.Id == inventoryId)
@@ -201,35 +201,60 @@ namespace RBX_Alt_Manager.Controls
                         if (child is Label lbl && lbl.Name == $"invqty_{inventoryId}")
                         {
                             lbl.Text = newQuantity.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
-                            break;
+                        }
+                        else if (child is Label userLbl && userLbl.Name == $"invuser_{inventoryId}")
+                        {
+                            userLbl.ForeColor = newQuantity > 0 ? Color.White : Color.FromArgb(230, 100, 100);
                         }
                     }
                     break;
                 }
             }
 
-            // Atualizar o header do item (total de contas e total de quantidade)
+            // Atualizar o header do item (total, cores)
             RefreshItemHeaderInfo(itemId);
         }
 
         private void RefreshItemHeaderInfo(int itemId)
         {
             if (!_inventoryByItem.ContainsKey(itemId) || _contentPanel == null) return;
-            
+
             var inventory = _inventoryByItem[itemId];
             long totalQty = inventory.Sum(i => i.Quantity);
-            
-            // Encontrar o painel do item e atualizar a info
+
+            // Cor baseada no estoque: >5 verde, 1-5 laranja, 0 vermelho
+            Color stockColor;
+            if (totalQty > 5)
+                stockColor = Color.FromArgb(80, 200, 80);   // Verde
+            else if (totalQty > 0)
+                stockColor = Color.FromArgb(230, 160, 50);   // Laranja
+            else
+                stockColor = Color.FromArgb(200, 80, 80);    // Vermelho
+
+            string formattedTotal = totalQty.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
+
+            // Encontrar o painel do item e atualizar info + cores
             foreach (Control c in _contentPanel.Controls)
             {
                 if (c is Panel p && p.Tag is SupabaseGameItem item && item.Id == itemId)
                 {
                     foreach (Control child in p.Controls)
                     {
-                        if (child is Label lbl && lbl.ForeColor == Color.Gray)
+                        if (child is Label lbl)
                         {
-                            lbl.Text = $"({inventory.Count} contas, {totalQty} total)";
-                            break;
+                            if (lbl.Name == $"iteminfo_{itemId}")
+                            {
+                                lbl.Text = $"({formattedTotal})";
+                                lbl.ForeColor = stockColor;
+                            }
+                            else if (lbl.Name == $"itemname_{itemId}")
+                            {
+                                lbl.ForeColor = stockColor;
+                            }
+                            else if (lbl.Name == $"itemarrow_{itemId}")
+                            {
+                                lbl.ForeColor = stockColor;
+                            }
                         }
                     }
                     break;
@@ -712,11 +737,18 @@ namespace RBX_Alt_Manager.Controls
         private Panel CreateItemHeaderPanel(SupabaseGameItem item, List<SupabaseInventoryEntry> inventory, int width, bool isExpanded)
         {
             long totalQty = inventory.Sum(i => i.Quantity);
-            bool hasZeroStock = totalQty == 0;
-            
-            // Cor baseada no estoque
-            Color itemColor = hasZeroStock ? Color.FromArgb(200, 80, 80) : ThemeEditor.FormsForeground;
-            Color arrowColor = hasZeroStock ? Color.FromArgb(200, 80, 80) : Color.LimeGreen;
+
+            // Cor baseada no estoque: >5 verde, 1-5 laranja, 0 vermelho
+            Color stockColor;
+            if (totalQty > 5)
+                stockColor = Color.FromArgb(80, 200, 80);   // Verde
+            else if (totalQty > 0)
+                stockColor = Color.FromArgb(230, 160, 50);   // Laranja
+            else
+                stockColor = Color.FromArgb(200, 80, 80);    // Vermelho
+
+            Color itemColor = stockColor;
+            Color arrowColor = stockColor;
             
             var panel = new Panel
             {
@@ -730,6 +762,7 @@ namespace RBX_Alt_Manager.Controls
             // Seta de expansão
             var arrowLabel = new Label
             {
+                Name = $"itemarrow_{item.Id}",
                 Text = isExpanded ? "▼" : "▶",
                 Font = F7,
                 ForeColor = arrowColor,
@@ -741,6 +774,7 @@ namespace RBX_Alt_Manager.Controls
             // Nome do item
             var nameLabel = new Label
             {
+                Name = $"itemname_{item.Id}",
                 Text = item.Name,
                 Font = F8B,
                 ForeColor = itemColor,
@@ -754,9 +788,10 @@ namespace RBX_Alt_Manager.Controls
             string formattedTotal = totalQty.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
             var infoLabel = new Label
             {
+                Name = $"iteminfo_{item.Id}",
                 Text = $"({formattedTotal})",
                 Font = F7,
-                ForeColor = hasZeroStock ? Color.FromArgb(200, 80, 80) : Color.Gray,
+                ForeColor = stockColor,
                 Location = new Point(width - 110, 7),
                 Size = new Size(80, 14), // Aumentado para números grandes
                 TextAlign = ContentAlignment.MiddleRight
@@ -957,6 +992,8 @@ namespace RBX_Alt_Manager.Controls
 
         private Panel CreateAccountPanel(SupabaseGameItem item, SupabaseInventoryEntry inventory, int width)
         {
+            bool hasStock = inventory.Quantity > 0;
+
             var panel = new Panel
             {
                 Size = new Size(width - 15, 24),
@@ -968,9 +1005,10 @@ namespace RBX_Alt_Manager.Controls
             // Username (clicável para selecionar conta)
             var usernameLabel = new Label
             {
+                Name = $"invuser_{inventory.Id}",
                 Text = inventory.Username,
                 Font = F8,
-                ForeColor = Color.LimeGreen,
+                ForeColor = hasStock ? Color.White : Color.FromArgb(230, 100, 100),
                 Location = new Point(5, 4),
                 Size = new Size(width - 130, 16), // Reduzido para dar mais espaço ao número
                 AutoEllipsis = true,
@@ -1015,15 +1053,20 @@ namespace RBX_Alt_Manager.Controls
             contextMenu.ForeColor = ThemeEditor.FormsForeground;
             contextMenu.Renderer = new DarkMenuRenderer();
 
+            var copyUsernameItem = new ToolStripMenuItem("📋 Copiar Username");
+            copyUsernameItem.Click += (s, e) => { try { Clipboard.SetText(inventory.Username); } catch { } };
+
             var moveToEmptyItem = new ToolStripMenuItem("📤 Mover para Contas Vazias");
             moveToEmptyItem.Click += (s, e) => MoveToEmptyAccounts(item, inventory);
-            
+
             var changeItemMenu = new ToolStripMenuItem("🔄 Alterar Item");
             changeItemMenu.Click += (s, e) => ShowChangeItemDialog(item, inventory);
 
             var archiveItem = new ToolStripMenuItem("📁 Arquivar Conta");
             archiveItem.Click += (s, e) => ArchiveAccountFromInventory(item, inventory);
 
+            contextMenu.Items.Add(copyUsernameItem);
+            contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(moveToEmptyItem);
             contextMenu.Items.Add(changeItemMenu);
             contextMenu.Items.Add(new ToolStripSeparator());
@@ -2133,12 +2176,17 @@ namespace RBX_Alt_Manager.Controls
             contextMenu.ForeColor = ThemeEditor.FormsForeground;
             contextMenu.Renderer = new DarkMenuRenderer();
 
+            var copyUsernameItem = new ToolStripMenuItem("📋 Copiar Username");
+            copyUsernameItem.Click += (s, e) => { try { Clipboard.SetText(account.Username); } catch { } };
+
             var newStockItem = new ToolStripMenuItem("📦 Novo Estoque");
             newStockItem.Click += (s, e) => ShowNewStockDialog(account);
-            
+
             var archiveItem = new ToolStripMenuItem("📁 Arquivar Conta");
             archiveItem.Click += (s, e) => ShowArchiveConfirmation(account);
 
+            contextMenu.Items.Add(copyUsernameItem);
+            contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(newStockItem);
             contextMenu.Items.Add(archiveItem);
 

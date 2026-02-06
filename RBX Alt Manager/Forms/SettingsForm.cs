@@ -64,6 +64,15 @@ namespace RBX_Alt_Manager.Forms
             // Debug Mode
             DebugModeCB.Checked = AccountManager.General.Get<bool>("DebugMode");
 
+            // Mute Roblox
+            MuteRobloxCB.Checked = AccountManager.General.Get<bool>("MuteRoblox");
+
+            // Bring to Front Hotkey
+            string savedBringToFrontHotkey = AccountManager.General.Get<string>("BringToFrontHotkey");
+            if (string.IsNullOrEmpty(savedBringToFrontHotkey)) savedBringToFrontHotkey = "Desativado";
+            int bringToFrontIndex = BringToFrontHotkeyComboBox.Items.IndexOf(savedBringToFrontHotkey);
+            BringToFrontHotkeyComboBox.SelectedIndex = bringToFrontIndex >= 0 ? bringToFrontIndex : 0;
+
             if (AccountManager.General.Exists("CustomClientSettings") && File.Exists(AccountManager.General.Get<string>("CustomClientSettings")))
             {
                 OverrideWithCustomCB.Checked = true;
@@ -152,6 +161,25 @@ namespace RBX_Alt_Manager.Forms
             AccountManager.DebugModeAtivo = DebugModeCB.Checked;
         }
 
+        private void MuteRobloxCB_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!SettingsLoaded) return;
+
+            AccountManager.General.Set("MuteRoblox", MuteRobloxCB.Checked ? "true" : "false");
+            AccountManager.IniSettings.Save("RAMSettings.ini");
+            AccountManager.Instance.UpdateRobloxMuteTimer(MuteRobloxCB.Checked);
+        }
+
+        private void BringToFrontHotkeyComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (!SettingsLoaded) return;
+
+            string selected = BringToFrontHotkeyComboBox.SelectedItem?.ToString() ?? "Desativado";
+            AccountManager.General.Set("BringToFrontHotkey", selected);
+            AccountManager.IniSettings.Save("RAMSettings.ini");
+            AccountManager.Instance.UpdateBringToFrontHotkey(selected);
+        }
+
         private async void SyncAccountsButton_Click(object sender, EventArgs e)
         {
             SyncAccountsButton.Enabled = false;
@@ -197,6 +225,16 @@ namespace RBX_Alt_Manager.Forms
                 SyncAccountsButton.Enabled = true;
                 SyncAccountsButton.Text = "☁️ Sincronizar Contas (Supabase)";
             }
+        }
+
+        private void LogsButton_Click(object sender, EventArgs e)
+        {
+            AccountManager.Instance.ShowLogsPopup();
+        }
+
+        private void CalculadoraButton_Click(object sender, EventArgs e)
+        {
+            AccountManager.Instance.ShowCalculadoraPopup();
         }
 
         private void LogoutButton_Click(object sender, EventArgs e)

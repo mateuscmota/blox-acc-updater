@@ -139,7 +139,7 @@ namespace RBX_Alt_Manager
             this.button3 = new System.Windows.Forms.Button();
             this.mappedImageRenderer1 = new BrightIdeasSoftware.MappedImageRenderer();
             this.button2 = new System.Windows.Forms.Button();
-            this.LogsButton = new System.Windows.Forms.Button();
+            this.DescarteButton = new System.Windows.Forms.Button();
             this.panel4 = new System.Windows.Forms.Panel();
             this.label5 = new System.Windows.Forms.Label();
             this.button4 = new System.Windows.Forms.Button();
@@ -486,7 +486,7 @@ namespace RBX_Alt_Manager
             // DebugLogTextBox
             // 
             this.DebugLogTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.DebugLogTextBox.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
+            this.DebugLogTextBox.BackColor = System.Drawing.SystemColors.Control;
             this.DebugLogTextBox.Font = new System.Drawing.Font("Consolas", 7F);
             this.DebugLogTextBox.ForeColor = System.Drawing.Color.LightGreen;
             this.DebugLogTextBox.Location = new System.Drawing.Point(306, 639);
@@ -1085,7 +1085,7 @@ namespace RBX_Alt_Manager
             // GameSelectorPanel
             // 
             this.GameSelectorPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.GameSelectorPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
+            this.GameSelectorPanel.BackColor = System.Drawing.SystemColors.Control;
             this.GameSelectorPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.GameSelectorPanel.Location = new System.Drawing.Point(814, 47);
             this.GameSelectorPanel.Name = "GameSelectorPanel";
@@ -1095,7 +1095,7 @@ namespace RBX_Alt_Manager
             // EstoquePanel
             // 
             this.EstoquePanel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.EstoquePanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
+            this.EstoquePanel.BackColor = System.Drawing.SystemColors.Control;
             this.EstoquePanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.EstoquePanel.Controls.Add(this.EstoqueTitleLabel);
             this.EstoquePanel.Controls.Add(this.EstoqueRefreshButton);
@@ -1109,7 +1109,7 @@ namespace RBX_Alt_Manager
             // 
             // EstoqueTitleLabel
             // 
-            this.EstoqueTitleLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
+            this.EstoqueTitleLabel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(159)))), ((int)(((byte)(159)))), ((int)(((byte)(159)))));
             this.EstoqueTitleLabel.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
             this.EstoqueTitleLabel.ForeColor = System.Drawing.Color.White;
             this.EstoqueTitleLabel.Location = new System.Drawing.Point(0, 0);
@@ -1121,7 +1121,7 @@ namespace RBX_Alt_Manager
             // 
             // EstoqueRefreshButton
             // 
-            this.EstoqueRefreshButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
+            this.EstoqueRefreshButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(159)))), ((int)(((byte)(159)))), ((int)(((byte)(159)))));
             this.EstoqueRefreshButton.FlatAppearance.BorderSize = 0;
             this.EstoqueRefreshButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.EstoqueRefreshButton.Font = new System.Drawing.Font("Segoe UI", 8F);
@@ -1280,17 +1280,20 @@ namespace RBX_Alt_Manager
             this.button2.UseVisualStyleBackColor = false;
             this.button2.Click += new System.EventHandler(this.EditTheme_Click);
             // 
-            // LogsButton
+            // DescarteButton
             // 
-            this.LogsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.LogsButton.BackColor = System.Drawing.SystemColors.ActiveCaption;
-            this.LogsButton.Location = new System.Drawing.Point(757, 9);
-            this.LogsButton.Name = "LogsButton";
-            this.LogsButton.Size = new System.Drawing.Size(100, 32);
-            this.LogsButton.TabIndex = 1506;
-            this.LogsButton.Text = "📋 LOGS";
-            this.LogsButton.UseVisualStyleBackColor = false;
-            this.LogsButton.Click += new System.EventHandler(this.LogsButton_Click);
+            this.DescarteButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.DescarteButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(60)))), ((int)(((byte)(60)))));
+            this.DescarteButton.FlatAppearance.BorderSize = 0;
+            this.DescarteButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.DescarteButton.ForeColor = System.Drawing.Color.White;
+            this.DescarteButton.Location = new System.Drawing.Point(734, 9);
+            this.DescarteButton.Name = "DescarteButton";
+            this.DescarteButton.Size = new System.Drawing.Size(123, 32);
+            this.DescarteButton.TabIndex = 1506;
+            this.DescarteButton.Text = "🗑️ DESCARTE";
+            this.DescarteButton.UseVisualStyleBackColor = false;
+            this.DescarteButton.Click += new System.EventHandler(this.DescarteButton_Click);
             // 
             // panel4
             // 
@@ -1396,9 +1399,9 @@ namespace RBX_Alt_Manager
             // 
             this.sellRbxBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.sellRbxBtn.BackColor = System.Drawing.SystemColors.ActiveCaption;
-            this.sellRbxBtn.Location = new System.Drawing.Point(579, 10);
+            this.sellRbxBtn.Location = new System.Drawing.Point(579, 9);
             this.sellRbxBtn.Name = "sellRbxBtn";
-            this.sellRbxBtn.Size = new System.Drawing.Size(172, 32);
+            this.sellRbxBtn.Size = new System.Drawing.Size(149, 32);
             this.sellRbxBtn.TabIndex = 1601;
             this.sellRbxBtn.Text = "📋 SELLRBX";
             this.sellRbxBtn.UseVisualStyleBackColor = false;
@@ -1412,7 +1415,7 @@ namespace RBX_Alt_Manager
             this.ClientSize = new System.Drawing.Size(1131, 862);
             this.Controls.Add(this.sellRbxBtn);
             this.Controls.Add(this.panel4);
-            this.Controls.Add(this.LogsButton);
+            this.Controls.Add(this.DescarteButton);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.panel3);
             this.Controls.Add(this.cfgbtn1);
@@ -1576,7 +1579,7 @@ namespace RBX_Alt_Manager
         private System.Windows.Forms.Label label1;
         private BrightIdeasSoftware.MappedImageRenderer mappedImageRenderer1;
         private System.Windows.Forms.Button button2;
-        private System.Windows.Forms.Button LogsButton;
+        private System.Windows.Forms.Button DescarteButton;
         private System.Windows.Forms.Panel panel4;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label3;

@@ -34,6 +34,7 @@
             this.btnPresetClaro = new System.Windows.Forms.Button();
             this.btnPresetAzul = new System.Windows.Forms.Button();
             this.btnPresetResetar = new System.Windows.Forms.Button();
+            this.btnRestaurar = new System.Windows.Forms.Button();
             this.pnlBottom = new System.Windows.Forms.Panel();
             this.grpPreview = new System.Windows.Forms.GroupBox();
             this.btnSalvar = new System.Windows.Forms.Button();
@@ -49,17 +50,18 @@
             this.pnlPresets.Controls.Add(this.btnPresetClaro);
             this.pnlPresets.Controls.Add(this.btnPresetAzul);
             this.pnlPresets.Controls.Add(this.btnPresetResetar);
+            this.pnlPresets.Controls.Add(this.btnRestaurar);
             this.pnlPresets.Dock = System.Windows.Forms.DockStyle.Top;
             this.pnlPresets.Location = new System.Drawing.Point(0, 0);
             this.pnlPresets.Name = "pnlPresets";
-            this.pnlPresets.Size = new System.Drawing.Size(480, 45);
+            this.pnlPresets.Size = new System.Drawing.Size(530, 45);
             this.pnlPresets.TabIndex = 0;
             //
             // btnPresetEscuro
             //
-            this.btnPresetEscuro.Location = new System.Drawing.Point(10, 10);
+            this.btnPresetEscuro.Location = new System.Drawing.Point(8, 10);
             this.btnPresetEscuro.Name = "btnPresetEscuro";
-            this.btnPresetEscuro.Size = new System.Drawing.Size(105, 26);
+            this.btnPresetEscuro.Size = new System.Drawing.Size(82, 26);
             this.btnPresetEscuro.TabIndex = 0;
             this.btnPresetEscuro.Text = "Escuro";
             this.btnPresetEscuro.UseVisualStyleBackColor = true;
@@ -67,9 +69,9 @@
             //
             // btnPresetClaro
             //
-            this.btnPresetClaro.Location = new System.Drawing.Point(121, 10);
+            this.btnPresetClaro.Location = new System.Drawing.Point(96, 10);
             this.btnPresetClaro.Name = "btnPresetClaro";
-            this.btnPresetClaro.Size = new System.Drawing.Size(105, 26);
+            this.btnPresetClaro.Size = new System.Drawing.Size(82, 26);
             this.btnPresetClaro.TabIndex = 1;
             this.btnPresetClaro.Text = "Claro";
             this.btnPresetClaro.UseVisualStyleBackColor = true;
@@ -77,9 +79,9 @@
             //
             // btnPresetAzul
             //
-            this.btnPresetAzul.Location = new System.Drawing.Point(232, 10);
+            this.btnPresetAzul.Location = new System.Drawing.Point(184, 10);
             this.btnPresetAzul.Name = "btnPresetAzul";
-            this.btnPresetAzul.Size = new System.Drawing.Size(105, 26);
+            this.btnPresetAzul.Size = new System.Drawing.Size(82, 26);
             this.btnPresetAzul.TabIndex = 2;
             this.btnPresetAzul.Text = "Azul";
             this.btnPresetAzul.UseVisualStyleBackColor = true;
@@ -87,13 +89,23 @@
             //
             // btnPresetResetar
             //
-            this.btnPresetResetar.Location = new System.Drawing.Point(343, 10);
+            this.btnPresetResetar.Location = new System.Drawing.Point(272, 10);
             this.btnPresetResetar.Name = "btnPresetResetar";
-            this.btnPresetResetar.Size = new System.Drawing.Size(105, 26);
+            this.btnPresetResetar.Size = new System.Drawing.Size(82, 26);
             this.btnPresetResetar.TabIndex = 3;
             this.btnPresetResetar.Text = "Resetar";
             this.btnPresetResetar.UseVisualStyleBackColor = true;
             this.btnPresetResetar.Click += new System.EventHandler(this.btnPresetResetar_Click);
+            //
+            // btnRestaurar
+            //
+            this.btnRestaurar.Location = new System.Drawing.Point(360, 10);
+            this.btnRestaurar.Name = "btnRestaurar";
+            this.btnRestaurar.Size = new System.Drawing.Size(130, 26);
+            this.btnRestaurar.TabIndex = 4;
+            this.btnRestaurar.Text = "Restaurar Original";
+            this.btnRestaurar.UseVisualStyleBackColor = true;
+            this.btnRestaurar.Click += new System.EventHandler(this.btnRestaurar_Click);
             //
             // pnlBottom
             //
@@ -103,7 +115,7 @@
             this.pnlBottom.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.pnlBottom.Location = new System.Drawing.Point(0, 410);
             this.pnlBottom.Name = "pnlBottom";
-            this.pnlBottom.Size = new System.Drawing.Size(480, 140);
+            this.pnlBottom.Size = new System.Drawing.Size(530, 140);
             this.pnlBottom.TabIndex = 1;
             //
             // grpPreview
@@ -112,14 +124,14 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.grpPreview.Location = new System.Drawing.Point(10, 5);
             this.grpPreview.Name = "grpPreview";
-            this.grpPreview.Size = new System.Drawing.Size(460, 85);
+            this.grpPreview.Size = new System.Drawing.Size(510, 85);
             this.grpPreview.TabIndex = 0;
             this.grpPreview.TabStop = false;
             this.grpPreview.Text = "Preview";
             //
             // btnSalvar
             //
-            this.btnSalvar.Location = new System.Drawing.Point(110, 100);
+            this.btnSalvar.Location = new System.Drawing.Point(135, 100);
             this.btnSalvar.Name = "btnSalvar";
             this.btnSalvar.Size = new System.Drawing.Size(130, 30);
             this.btnSalvar.TabIndex = 1;
@@ -129,7 +141,7 @@
             //
             // btnFechar
             //
-            this.btnFechar.Location = new System.Drawing.Point(250, 100);
+            this.btnFechar.Location = new System.Drawing.Point(275, 100);
             this.btnFechar.Name = "btnFechar";
             this.btnFechar.Size = new System.Drawing.Size(130, 30);
             this.btnFechar.TabIndex = 2;
@@ -143,20 +155,20 @@
             this.pnlMain.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlMain.Location = new System.Drawing.Point(0, 45);
             this.pnlMain.Name = "pnlMain";
-            this.pnlMain.Size = new System.Drawing.Size(480, 365);
+            this.pnlMain.Size = new System.Drawing.Size(530, 365);
             this.pnlMain.TabIndex = 2;
             //
             // ThemeEditor
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(480, 550);
+            this.ClientSize = new System.Drawing.Size(530, 550);
             this.Controls.Add(this.pnlMain);
             this.Controls.Add(this.pnlBottom);
             this.Controls.Add(this.pnlPresets);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.MinimumSize = new System.Drawing.Size(400, 400);
+            this.MinimumSize = new System.Drawing.Size(530, 400);
             this.Name = "ThemeEditor";
             this.ShowIcon = false;
             this.Text = "Editor de Tema";
@@ -174,6 +186,7 @@
         private System.Windows.Forms.Button btnPresetClaro;
         private System.Windows.Forms.Button btnPresetAzul;
         private System.Windows.Forms.Button btnPresetResetar;
+        private System.Windows.Forms.Button btnRestaurar;
         private System.Windows.Forms.Panel pnlBottom;
         private System.Windows.Forms.GroupBox grpPreview;
         private System.Windows.Forms.Button btnSalvar;

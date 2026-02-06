@@ -1020,6 +1020,76 @@ namespace RBX_Alt_Manager.Classes
 
         #endregion
 
+        #region Discarded Accounts
+
+        /// <summary>
+        /// Salva uma conta descartada no Supabase
+        /// </summary>
+        public async Task<bool> AddDiscardedAccountAsync(string login, string password, string cookie, string reason)
+        {
+            try
+            {
+                var data = new
+                {
+                    login = login,
+                    password = password,
+                    cookie = string.IsNullOrEmpty(cookie) ? (string)null : cookie,
+                    reason = string.IsNullOrEmpty(reason) ? (string)null : reason,
+                    created_at = DateTime.UtcNow
+                };
+                var json = JsonConvert.SerializeObject(data);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _client.PostAsync($"{SUPABASE_URL}/rest/v1/discarded_accounts", content);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao salvar conta descartada: {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Busca todas as contas descartadas
+        /// </summary>
+        public async Task<List<SupabaseDiscardedAccount>> GetDiscardedAccountsAsync()
+        {
+            try
+            {
+                var response = await _client.GetAsync($"{SUPABASE_URL}/rest/v1/discarded_accounts?select=*&order=created_at.desc&limit=500");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    return JsonConvert.DeserializeObject<List<SupabaseDiscardedAccount>>(json) ?? new List<SupabaseDiscardedAccount>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao buscar contas descartadas: {ex.Message}");
+            }
+            return new List<SupabaseDiscardedAccount>();
+        }
+
+        /// <summary>
+        /// Remove uma conta descartada pelo ID
+        /// </summary>
+        public async Task<bool> DeleteDiscardedAccountAsync(int id)
+        {
+            try
+            {
+                var response = await _client.DeleteAsync($"{SUPABASE_URL}/rest/v1/discarded_accounts?id=eq.{id}");
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao remover conta descartada: {ex.Message}");
+            }
+            return false;
+        }
+
+        #endregion
+
         #region Accounts
 
         /// <summary>
@@ -1536,6 +1606,27 @@ namespace RBX_Alt_Manager.Classes
 
         [JsonProperty("updated_at")]
         public DateTime UpdatedAt { get; set; }
+    }
+
+    public class SupabaseDiscardedAccount
+    {
+        [JsonProperty("id")]
+        public int Id { get; set; }
+
+        [JsonProperty("login")]
+        public string Login { get; set; }
+
+        [JsonProperty("password")]
+        public string Password { get; set; }
+
+        [JsonProperty("cookie")]
+        public string Cookie { get; set; }
+
+        [JsonProperty("reason")]
+        public string Reason { get; set; }
+
+        [JsonProperty("created_at")]
+        public DateTime CreatedAt { get; set; }
     }
 
     /// <summary>
