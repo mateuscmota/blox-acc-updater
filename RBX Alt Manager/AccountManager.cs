@@ -3088,6 +3088,55 @@ namespace RBX_Alt_Manager
             }
         }
 
+        private async Task LoadTwofaSecretsFromSupabaseAsync()
+        {
+            try
+            {
+                var supabaseAccounts = await Classes.SupabaseManager.Instance.GetAccountsAsync();
+                bool anyChanged = false;
+
+                foreach (var sa in supabaseAccounts)
+                {
+                    if (string.IsNullOrEmpty(sa.TwofaSecret)) continue;
+
+                    var local = AccountsList.FirstOrDefault(a =>
+                        a.Username.Equals(sa.Username, StringComparison.OrdinalIgnoreCase));
+
+                    if (local == null) continue;
+
+                    string current = local.GetField("TwoFASecret");
+                    if (current == sa.TwofaSecret) continue;
+
+                    local.SetField("TwoFASecret", sa.TwofaSecret);
+                    anyChanged = true;
+
+                    if (DebugModeAtivo)
+                        AddLog($"🔑 [2FA Load] Secret carregado do Supabase para {sa.Username}");
+                }
+
+                if (anyChanged)
+                {
+                    SaveAccounts();
+
+                    // Atualizar TextBox se a conta selecionada tem 2FA
+                    if (SelectedAccount != null)
+                    {
+                        string saved2FA = SelectedAccount.GetField("TwoFASecret");
+                        if (!string.IsNullOrEmpty(saved2FA))
+                            TwoFASecretTextBox.Text = saved2FA;
+                    }
+                }
+
+                if (DebugModeAtivo)
+                    AddLog($"🔑 [2FA Load] Carregamento inicial concluído");
+            }
+            catch (Exception ex)
+            {
+                if (DebugModeAtivo)
+                    AddLog($"⚠️ [2FA Load] Erro: {ex.Message}");
+            }
+        }
+
         private void OnTwofaSecretChangedFromSync(object sender, System.Collections.Generic.List<Classes.TwofaUpdate> updates)
         {
             bool anyChanged = false;
@@ -3162,6 +3211,9 @@ namespace RBX_Alt_Manager
             // Iniciar serviço de sincronização de 2FA
             Classes.TwofaSyncService.Instance.Start();
             Classes.TwofaSyncService.Instance.TwofaSecretChanged += OnTwofaSecretChangedFromSync;
+
+            // Carregar 2FA secrets existentes do Supabase para contas locais
+            _ = LoadTwofaSecretsFromSupabaseAsync();
 
             // Configurar eventos de log
             _inventoryPanel.LogMessage += (s, msg) => AddLog(msg);

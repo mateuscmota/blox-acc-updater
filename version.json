@@ -1,5 +1,5 @@
 {
-    "version": "2.0.5",
-    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.0.5/2.0.5.zip",
-    "changelog": "Versão 2.0.5 - 2FA Secret por conta com sincronização Supabase em tempo real, versão no título do programa"
+    "version": "2.0.6",
+    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.0.6/2.0.6.zip",
+    "changelog": "Versão 2.0.6 - Correção: 2FA Secret agora carrega do Supabase ao iniciar o programa"
 }
