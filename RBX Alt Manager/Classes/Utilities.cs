@@ -275,6 +275,7 @@ public static Color Lerp(this Color s, Color t, float k)
 
                     Button b = control as Button;
                     b.FlatStyle = ThemeEditor.ButtonStyle;
+                    b.FlatAppearance.BorderSize = 1;
                     b.FlatAppearance.BorderColor = ThemeEditor.ButtonsBorder;
                 }
 

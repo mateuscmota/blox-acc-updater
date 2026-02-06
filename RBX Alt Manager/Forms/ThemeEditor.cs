@@ -10,28 +10,29 @@ namespace RBX_Alt_Manager.Forms
 {
     public partial class ThemeEditor : Form
     {
-        public static Color AccountBackground = SystemColors.Control;
-        public static Color AccountForeground = SystemColors.ControlText;
+        // Padrão: tema Escuro (cinza neutro frio, estilo VS Code Dark+)
+        public static Color AccountBackground = Color.FromArgb(28, 28, 33);
+        public static Color AccountForeground = Color.FromArgb(210, 210, 215);
 
-        public static Color ButtonsBackground = SystemColors.Control;
-        public static Color ButtonsForeground = SystemColors.ControlText;
-        public static Color ButtonsBorder = SystemColors.Control;
-        public static FlatStyle ButtonStyle = FlatStyle.Standard;
+        public static Color ButtonsBackground = Color.FromArgb(44, 44, 50);
+        public static Color ButtonsForeground = Color.FromArgb(225, 225, 230);
+        public static Color ButtonsBorder = Color.FromArgb(58, 58, 65);
+        public static FlatStyle ButtonStyle = FlatStyle.Flat;
 
-        public static Color FormsBackground = SystemColors.Control;
-        public static Color FormsForeground = SystemColors.ControlText;
+        public static Color FormsBackground = Color.FromArgb(24, 24, 28);
+        public static Color FormsForeground = Color.FromArgb(220, 220, 225);
         public static bool UseDarkTopBar = true;
         public static bool ShowHeaders = true;
 
-        public static Color TextBoxesBackground = SystemColors.Control;
-        public static Color TextBoxesForeground = SystemColors.ControlText;
-        public static Color TextBoxesBorder = Color.FromArgb(0x7A7A7A);
+        public static Color TextBoxesBackground = Color.FromArgb(34, 34, 40);
+        public static Color TextBoxesForeground = Color.FromArgb(215, 215, 220);
+        public static Color TextBoxesBorder = Color.FromArgb(55, 55, 62);
 
-        public static Color LabelBackground = SystemColors.Control;
-        public static Color LabelForeground = SystemColors.ControlText;
+        public static Color LabelBackground = Color.FromArgb(34, 34, 40);
+        public static Color LabelForeground = Color.FromArgb(210, 210, 215);
         public static bool LabelTransparent = true;
 
-        public static bool LightImages = false;
+        public static bool LightImages = true;
         // public static bool UseNormalTabControls = false;
 
         // Cores derivadas para painéis dinâmicos (inventário, amigos, estoque, diálogos)
@@ -70,6 +71,7 @@ namespace RBX_Alt_Manager.Forms
                     btn.ForeColor = ButtonsForeground;
                     if (btn.BackColor == SystemColors.Control) btn.BackColor = ButtonsBackground;
                     btn.FlatStyle = ButtonStyle;
+                    btn.FlatAppearance.BorderSize = 1;
                     btn.FlatAppearance.BorderColor = ButtonsBorder;
                 }
                 else if (c is TextBox || c is RichTextBox)
@@ -275,7 +277,8 @@ namespace RBX_Alt_Manager.Forms
         private void btnPresetEscuro_Click(object sender, EventArgs e) => ApplyPresetEscuro();
         private void btnPresetClaro_Click(object sender, EventArgs e) => ApplyPresetClaro();
         private void btnPresetAzul_Click(object sender, EventArgs e) => ApplyPresetAzul();
-        private void btnPresetResetar_Click(object sender, EventArgs e) => ApplyPresetResetar();
+        private void btnPresetRoxo_Click(object sender, EventArgs e) => ApplyPresetRoxo();
+        private void btnPresetVerde_Click(object sender, EventArgs e) => ApplyPresetVerde();
         private void btnRestaurar_Click(object sender, EventArgs e)
         {
             RestoreSnapshot(_original);
@@ -642,91 +645,118 @@ namespace RBX_Alt_Manager.Forms
 
         // === PRESETS ===
 
+        // Escuro — cinza neutro frio, inspirado em editores de código modernos (VS Code Dark+)
         private void ApplyPresetEscuro()
         {
-            AccountBackground = Color.FromArgb(30, 31, 40);
-            AccountForeground = Color.White;
-            ButtonsBackground = Color.FromArgb(55, 55, 65);
-            ButtonsForeground = Color.White;
-            ButtonsBorder = Color.FromArgb(70, 70, 80);
+            FormsBackground = Color.FromArgb(24, 24, 28);
+            FormsForeground = Color.FromArgb(220, 220, 225);
+            AccountBackground = Color.FromArgb(28, 28, 33);
+            AccountForeground = Color.FromArgb(210, 210, 215);
+            ButtonsBackground = Color.FromArgb(44, 44, 50);
+            ButtonsForeground = Color.FromArgb(225, 225, 230);
+            ButtonsBorder = Color.FromArgb(58, 58, 65);
             ButtonStyle = FlatStyle.Flat;
-            FormsBackground = Color.FromArgb(30, 31, 40);
-            FormsForeground = Color.White;
+            TextBoxesBackground = Color.FromArgb(34, 34, 40);
+            TextBoxesForeground = Color.FromArgb(215, 215, 220);
+            TextBoxesBorder = Color.FromArgb(55, 55, 62);
+            LabelBackground = Color.FromArgb(34, 34, 40);
+            LabelForeground = Color.FromArgb(210, 210, 215);
+            LabelTransparent = true;
             UseDarkTopBar = true;
             ShowHeaders = true;
-            TextBoxesBackground = Color.FromArgb(40, 42, 54);
-            TextBoxesForeground = Color.FromArgb(230, 230, 230);
-            TextBoxesBorder = Color.FromArgb(70, 70, 80);
-            LabelBackground = Color.FromArgb(40, 42, 54);
-            LabelForeground = Color.White;
-            LabelTransparent = true;
             LightImages = true;
             OnColorChanged();
         }
 
+        // Claro — branco acinzentado com contraste suave, estilo Apple/Material Design
         private void ApplyPresetClaro()
         {
-            AccountBackground = Color.FromArgb(240, 240, 245);
-            AccountForeground = Color.FromArgb(30, 30, 30);
-            ButtonsBackground = Color.FromArgb(225, 225, 230);
-            ButtonsForeground = Color.FromArgb(30, 30, 30);
-            ButtonsBorder = Color.FromArgb(180, 180, 185);
+            FormsBackground = Color.FromArgb(246, 246, 249);
+            FormsForeground = Color.FromArgb(28, 28, 32);
+            AccountBackground = Color.FromArgb(238, 238, 242);
+            AccountForeground = Color.FromArgb(32, 32, 36);
+            ButtonsBackground = Color.FromArgb(228, 228, 234);
+            ButtonsForeground = Color.FromArgb(32, 32, 36);
+            ButtonsBorder = Color.FromArgb(195, 195, 205);
             ButtonStyle = FlatStyle.Flat;
-            FormsBackground = Color.FromArgb(245, 245, 250);
-            FormsForeground = Color.FromArgb(30, 30, 30);
+            TextBoxesBackground = Color.FromArgb(255, 255, 255);
+            TextBoxesForeground = Color.FromArgb(32, 32, 36);
+            TextBoxesBorder = Color.FromArgb(200, 200, 210);
+            LabelBackground = Color.White;
+            LabelForeground = Color.FromArgb(40, 40, 45);
+            LabelTransparent = true;
             UseDarkTopBar = false;
             ShowHeaders = true;
-            TextBoxesBackground = Color.White;
-            TextBoxesForeground = Color.FromArgb(30, 30, 30);
-            TextBoxesBorder = Color.FromArgb(180, 180, 185);
-            LabelBackground = Color.White;
-            LabelForeground = Color.FromArgb(30, 30, 30);
-            LabelTransparent = true;
             LightImages = false;
             OnColorChanged();
         }
 
+        // Azul — navy profundo, estilo Discord/Slack
         private void ApplyPresetAzul()
         {
-            AccountBackground = Color.FromArgb(25, 35, 55);
-            AccountForeground = Color.FromArgb(200, 220, 255);
-            ButtonsBackground = Color.FromArgb(40, 60, 100);
-            ButtonsForeground = Color.White;
-            ButtonsBorder = Color.FromArgb(60, 80, 130);
+            FormsBackground = Color.FromArgb(18, 25, 38);
+            FormsForeground = Color.FromArgb(185, 200, 225);
+            AccountBackground = Color.FromArgb(22, 30, 44);
+            AccountForeground = Color.FromArgb(180, 195, 220);
+            ButtonsBackground = Color.FromArgb(35, 48, 72);
+            ButtonsForeground = Color.FromArgb(210, 220, 240);
+            ButtonsBorder = Color.FromArgb(50, 65, 95);
             ButtonStyle = FlatStyle.Flat;
-            FormsBackground = Color.FromArgb(20, 30, 50);
-            FormsForeground = Color.FromArgb(200, 220, 255);
+            TextBoxesBackground = Color.FromArgb(26, 36, 54);
+            TextBoxesForeground = Color.FromArgb(200, 212, 235);
+            TextBoxesBorder = Color.FromArgb(45, 58, 85);
+            LabelBackground = Color.FromArgb(26, 36, 54);
+            LabelForeground = Color.FromArgb(185, 200, 225);
+            LabelTransparent = true;
             UseDarkTopBar = true;
             ShowHeaders = true;
-            TextBoxesBackground = Color.FromArgb(30, 45, 70);
-            TextBoxesForeground = Color.FromArgb(220, 230, 255);
-            TextBoxesBorder = Color.FromArgb(50, 70, 110);
-            LabelBackground = Color.FromArgb(30, 45, 70);
-            LabelForeground = Color.FromArgb(200, 220, 255);
-            LabelTransparent = true;
             LightImages = true;
             OnColorChanged();
         }
 
-        private void ApplyPresetResetar()
+        // Roxo — violeta escuro, estilo Dracula/Cyberpunk
+        private void ApplyPresetRoxo()
         {
-            AccountBackground = SystemColors.Control;
-            AccountForeground = SystemColors.ControlText;
-            ButtonsBackground = SystemColors.Control;
-            ButtonsForeground = SystemColors.ControlText;
-            ButtonsBorder = SystemColors.Control;
-            ButtonStyle = FlatStyle.Standard;
-            FormsBackground = SystemColors.Control;
-            FormsForeground = SystemColors.ControlText;
+            FormsBackground = Color.FromArgb(22, 18, 32);
+            FormsForeground = Color.FromArgb(205, 195, 225);
+            AccountBackground = Color.FromArgb(26, 22, 38);
+            AccountForeground = Color.FromArgb(200, 190, 220);
+            ButtonsBackground = Color.FromArgb(42, 35, 58);
+            ButtonsForeground = Color.FromArgb(220, 210, 240);
+            ButtonsBorder = Color.FromArgb(58, 48, 80);
+            ButtonStyle = FlatStyle.Flat;
+            TextBoxesBackground = Color.FromArgb(30, 25, 44);
+            TextBoxesForeground = Color.FromArgb(210, 200, 230);
+            TextBoxesBorder = Color.FromArgb(52, 44, 72);
+            LabelBackground = Color.FromArgb(30, 25, 44);
+            LabelForeground = Color.FromArgb(205, 195, 225);
+            LabelTransparent = true;
             UseDarkTopBar = true;
             ShowHeaders = true;
-            TextBoxesBackground = SystemColors.Control;
-            TextBoxesForeground = SystemColors.ControlText;
-            TextBoxesBorder = Color.FromArgb(0x7A7A7A);
-            LabelBackground = SystemColors.Control;
-            LabelForeground = SystemColors.ControlText;
+            LightImages = true;
+            OnColorChanged();
+        }
+
+        // Verde — floresta escura, estilo terminal/matrix
+        private void ApplyPresetVerde()
+        {
+            FormsBackground = Color.FromArgb(18, 26, 22);
+            FormsForeground = Color.FromArgb(190, 215, 200);
+            AccountBackground = Color.FromArgb(22, 30, 26);
+            AccountForeground = Color.FromArgb(185, 210, 195);
+            ButtonsBackground = Color.FromArgb(34, 50, 42);
+            ButtonsForeground = Color.FromArgb(210, 230, 218);
+            ButtonsBorder = Color.FromArgb(48, 68, 56);
+            ButtonStyle = FlatStyle.Flat;
+            TextBoxesBackground = Color.FromArgb(26, 38, 32);
+            TextBoxesForeground = Color.FromArgb(200, 222, 210);
+            TextBoxesBorder = Color.FromArgb(42, 60, 50);
+            LabelBackground = Color.FromArgb(26, 38, 32);
+            LabelForeground = Color.FromArgb(190, 215, 200);
             LabelTransparent = true;
-            LightImages = false;
+            UseDarkTopBar = true;
+            ShowHeaders = true;
+            LightImages = true;
             OnColorChanged();
         }
     }

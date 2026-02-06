@@ -109,6 +109,10 @@ namespace RBX_Alt_Manager
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
+        [DllImport("user32.dll")]
+        private static extern int ShowScrollBar(IntPtr hWnd, int wBar, bool bShow);
+        private const int SB_VERT = 1;
+
         private const int SW_RESTORE = 9;
         
         public static void IncrementRequestCount(int count = 1)
@@ -1696,6 +1700,54 @@ namespace RBX_Alt_Manager
 
             ControlForm?.ApplyTheme();
             SettingsForm?.ApplyTheme();
+
+            // Painel de Inventário
+            _inventoryPanel?.ApplyTheme();
+
+            // Painel de Amigos (panel4 + controles internos)
+            panel4.BackColor = ThemeEditor.FormsBackground;
+            if (FriendsListPanel != null)
+                FriendsListPanel.BackColor = ThemeEditor.FormsBackground;
+            label2.ForeColor = ThemeEditor.FormsForeground;
+            label3.ForeColor = ThemeEditor.FormsForeground;
+            label4.ForeColor = ThemeEditor.FormsForeground;
+            label5.ForeColor = ThemeEditor.FormsForeground;
+            textBox1.BackColor = ThemeEditor.TextBoxesBackground;
+            textBox1.ForeColor = ThemeEditor.TextBoxesForeground;
+            button1.BackColor = ThemeEditor.ButtonsBackground;
+            button1.ForeColor = ThemeEditor.ButtonsForeground;
+            button1.FlatStyle = FlatStyle.Flat;
+            button1.FlatAppearance.BorderSize = 1;
+            button1.FlatAppearance.BorderColor = ThemeEditor.ButtonsBorder;
+            button4.BackColor = ThemeEditor.ButtonsBackground;
+            button4.ForeColor = ThemeEditor.ButtonsForeground;
+            button4.FlatStyle = FlatStyle.Flat;
+            button4.FlatAppearance.BorderSize = 1;
+            button4.FlatAppearance.BorderColor = ThemeEditor.ButtonsBorder;
+            ADDAMIGO.BackColor = ThemeEditor.ButtonsBackground;
+            ADDAMIGO.ForeColor = ThemeEditor.ButtonsForeground;
+            ADDAMIGO.FlatStyle = FlatStyle.Flat;
+            ADDAMIGO.FlatAppearance.BorderSize = 1;
+            ADDAMIGO.FlatAppearance.BorderColor = ThemeEditor.ButtonsBorder;
+
+            // Atualizar cores dos friend items existentes
+            if (FriendsListPanel != null)
+            {
+                foreach (Control c in FriendsListPanel.Controls)
+                {
+                    if (c is Panel friendPanel)
+                    {
+                        friendPanel.BackColor = ThemeEditor.PanelBackground;
+                        foreach (Control child in friendPanel.Controls)
+                        {
+                            if (child is Label lbl && lbl.BackColor == Color.Transparent)
+                                lbl.ForeColor = lbl.ForeColor == Color.FromArgb(67, 181, 129) || lbl.ForeColor == Color.FromArgb(88, 101, 242)
+                                    ? lbl.ForeColor  // Preservar cores de status (verde=em jogo, azul=online)
+                                    : ThemeEditor.FormsForeground;
+                        }
+                    }
+                }
+            }
         }
 
         private async void LoadRecentGames()
@@ -3255,7 +3307,13 @@ namespace RBX_Alt_Manager
             FriendsListPanel.WrapContents = false;
             FriendsListPanel.BackColor = ThemeEditor.FormsBackground;
             FriendsListPanel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right; // Ancoragem
-            
+            // Esconder scrollbar vertical após cada ciclo de layout (BeginInvoke roda APÓS o Windows calcular scrollbars)
+            FriendsListPanel.Layout += (s, ev) =>
+            {
+                if (FriendsListPanel.IsHandleCreated)
+                    FriendsListPanel.BeginInvoke((Action)(() => ShowScrollBar(FriendsListPanel.Handle, SB_VERT, false)));
+            };
+
             // Adicionar ao panel4
             panel4.Controls.Add(FriendsListPanel);
             panel4.BackColor = ThemeEditor.FormsBackground;

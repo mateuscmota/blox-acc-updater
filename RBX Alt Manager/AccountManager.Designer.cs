@@ -236,7 +236,7 @@ namespace RBX_Alt_Manager
             this.SolveCaptchaButton.ForeColor = System.Drawing.Color.White;
             this.SolveCaptchaButton.Location = new System.Drawing.Point(1, 45);
             this.SolveCaptchaButton.Name = "SolveCaptchaButton";
-            this.SolveCaptchaButton.Size = new System.Drawing.Size(119, 23);
+            this.SolveCaptchaButton.Size = new System.Drawing.Size(197, 23);
             this.SolveCaptchaButton.TabIndex = 1400;
             this.SolveCaptchaButton.Text = "🔓 FIX CAPTCHA";
             this.SolveCaptchaButton.UseVisualStyleBackColor = false;
@@ -502,7 +502,7 @@ namespace RBX_Alt_Manager
             // 
             this.LabelPlaceID.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.LabelPlaceID.AutoSize = true;
-            this.LabelPlaceID.Location = new System.Drawing.Point(23, 650);
+            this.LabelPlaceID.Location = new System.Drawing.Point(22, 651);
             this.LabelPlaceID.Name = "LabelPlaceID";
             this.LabelPlaceID.Size = new System.Drawing.Size(59, 13);
             this.LabelPlaceID.TabIndex = 1000;
@@ -884,7 +884,7 @@ namespace RBX_Alt_Manager
             this.SearchAccountsTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.SearchAccountsTextBox.Location = new System.Drawing.Point(0, 20);
             this.SearchAccountsTextBox.Name = "SearchAccountsTextBox";
-            this.SearchAccountsTextBox.Size = new System.Drawing.Size(259, 20);
+            this.SearchAccountsTextBox.Size = new System.Drawing.Size(339, 20);
             this.SearchAccountsTextBox.TabIndex = 1101;
             this.SearchAccountsTextBox.TextChanged += new System.EventHandler(this.SearchAccountsTextBox_TextChanged);
             // 
@@ -892,7 +892,7 @@ namespace RBX_Alt_Manager
             // 
             this.ClearSearchButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.ClearSearchButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.ClearSearchButton.Location = new System.Drawing.Point(265, 20);
+            this.ClearSearchButton.Location = new System.Drawing.Point(345, 20);
             this.ClearSearchButton.Name = "ClearSearchButton";
             this.ClearSearchButton.Size = new System.Drawing.Size(27, 20);
             this.ClearSearchButton.TabIndex = 1102;
@@ -905,7 +905,7 @@ namespace RBX_Alt_Manager
             this.SearchAccountsLabel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.SearchAccountsLabel.AutoSize = true;
             this.SearchAccountsLabel.Font = new System.Drawing.Font("Trebuchet MS", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.SearchAccountsLabel.Location = new System.Drawing.Point(1, 1);
+            this.SearchAccountsLabel.Location = new System.Drawing.Point(0, 0);
             this.SearchAccountsLabel.Name = "SearchAccountsLabel";
             this.SearchAccountsLabel.Size = new System.Drawing.Size(75, 20);
             this.SearchAccountsLabel.TabIndex = 1100;
@@ -1003,7 +1003,7 @@ namespace RBX_Alt_Manager
             this.AntiCaptchaComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.AntiCaptchaComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.AntiCaptchaComboBox.FormattingEnabled = true;
-            this.AntiCaptchaComboBox.Location = new System.Drawing.Point(202, 46);
+            this.AntiCaptchaComboBox.Location = new System.Drawing.Point(282, 46);
             this.AntiCaptchaComboBox.Name = "AntiCaptchaComboBox";
             this.AntiCaptchaComboBox.Size = new System.Drawing.Size(90, 21);
             this.AntiCaptchaComboBox.TabIndex = 1301;
@@ -1013,7 +1013,7 @@ namespace RBX_Alt_Manager
             // 
             this.AntiCaptchaLabel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.AntiCaptchaLabel.AutoSize = true;
-            this.AntiCaptchaLabel.Location = new System.Drawing.Point(124, 50);
+            this.AntiCaptchaLabel.Location = new System.Drawing.Point(204, 50);
             this.AntiCaptchaLabel.Name = "AntiCaptchaLabel";
             this.AntiCaptchaLabel.Size = new System.Drawing.Size(71, 13);
             this.AntiCaptchaLabel.TabIndex = 1300;
@@ -1272,7 +1272,7 @@ namespace RBX_Alt_Manager
             // 
             this.button2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.button2.BackColor = System.Drawing.SystemColors.ActiveCaption;
-            this.button2.Location = new System.Drawing.Point(940, 9);
+            this.button2.Location = new System.Drawing.Point(939, 9);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(148, 32);
             this.button2.TabIndex = 1505;
@@ -1287,7 +1287,7 @@ namespace RBX_Alt_Manager
             this.DescarteButton.FlatAppearance.BorderSize = 0;
             this.DescarteButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.DescarteButton.ForeColor = System.Drawing.Color.White;
-            this.DescarteButton.Location = new System.Drawing.Point(812, 9);
+            this.DescarteButton.Location = new System.Drawing.Point(811, 9);
             this.DescarteButton.Name = "DescarteButton";
             this.DescarteButton.Size = new System.Drawing.Size(123, 32);
             this.DescarteButton.TabIndex = 1506;

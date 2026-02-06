@@ -504,6 +504,7 @@ namespace RBX_Alt_Manager.Forms
                     {
                         Button b = control as Button;
                         b.FlatStyle = ThemeEditor.ButtonStyle;
+                        b.FlatAppearance.BorderSize = 1;
                         b.FlatAppearance.BorderColor = ThemeEditor.ButtonsBorder;
                     }
 
