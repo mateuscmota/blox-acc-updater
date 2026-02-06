@@ -489,7 +489,7 @@ namespace RBX_Alt_Manager
             this.DebugLogTextBox.BackColor = System.Drawing.SystemColors.Control;
             this.DebugLogTextBox.Font = new System.Drawing.Font("Consolas", 7F);
             this.DebugLogTextBox.ForeColor = System.Drawing.Color.LightGreen;
-            this.DebugLogTextBox.Location = new System.Drawing.Point(306, 639);
+            this.DebugLogTextBox.Location = new System.Drawing.Point(384, 639);
             this.DebugLogTextBox.Name = "DebugLogTextBox";
             this.DebugLogTextBox.ReadOnly = true;
             this.DebugLogTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
@@ -621,7 +621,7 @@ namespace RBX_Alt_Manager
             this.AccountsView.Location = new System.Drawing.Point(1, 73);
             this.AccountsView.Name = "AccountsView";
             this.AccountsView.ShowSortIndicators = false;
-            this.AccountsView.Size = new System.Drawing.Size(292, 576);
+            this.AccountsView.Size = new System.Drawing.Size(370, 576);
             this.AccountsView.SortGroupItemsByPrimaryColumn = false;
             this.AccountsView.TabIndex = 20;
             this.AccountsView.UseCompatibleStateImageBehavior = false;
@@ -680,7 +680,7 @@ namespace RBX_Alt_Manager
             this.PasswordPanel.Controls.Add(this.PasswordLayoutPanel);
             this.PasswordPanel.Controls.Add(this.PasswordSelectionPanel);
             this.PasswordPanel.Controls.Add(this.EncryptionSelectionPanel);
-            this.PasswordPanel.Location = new System.Drawing.Point(1200, 0);
+            this.PasswordPanel.Location = new System.Drawing.Point(1278, 0);
             this.PasswordPanel.Name = "PasswordPanel";
             this.PasswordPanel.Size = new System.Drawing.Size(784, 301);
             this.PasswordPanel.TabIndex = 1005;
@@ -909,7 +909,7 @@ namespace RBX_Alt_Manager
             this.PrivateServersPanel.Controls.Add(this.NewServerNameLabel);
             this.PrivateServersPanel.Controls.Add(this.PrivateServersListPanel);
             this.PrivateServersPanel.Controls.Add(this.PrivateServersLabel);
-            this.PrivateServersPanel.Location = new System.Drawing.Point(306, 111);
+            this.PrivateServersPanel.Location = new System.Drawing.Point(384, 111);
             this.PrivateServersPanel.Name = "PrivateServersPanel";
             this.PrivateServersPanel.Size = new System.Drawing.Size(267, 522);
             this.PrivateServersPanel.TabIndex = 1200;
@@ -1074,7 +1074,7 @@ namespace RBX_Alt_Manager
             this.GameSelectorPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.GameSelectorPanel.BackColor = System.Drawing.SystemColors.Control;
             this.GameSelectorPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.GameSelectorPanel.Location = new System.Drawing.Point(814, 47);
+            this.GameSelectorPanel.Location = new System.Drawing.Point(892, 47);
             this.GameSelectorPanel.Name = "GameSelectorPanel";
             this.GameSelectorPanel.Size = new System.Drawing.Size(310, 682);
             this.GameSelectorPanel.TabIndex = 1001;
@@ -1089,7 +1089,7 @@ namespace RBX_Alt_Manager
             this.EstoquePanel.Controls.Add(this.EstoqueUserLabel);
             this.EstoquePanel.Controls.Add(this.EstoqueGameLabel);
             this.EstoquePanel.Controls.Add(this.EstoqueItemsPanel);
-            this.EstoquePanel.Location = new System.Drawing.Point(579, 47);
+            this.EstoquePanel.Location = new System.Drawing.Point(657, 47);
             this.EstoquePanel.Name = "EstoquePanel";
             this.EstoquePanel.Size = new System.Drawing.Size(230, 682);
             this.EstoquePanel.TabIndex = 1600;
@@ -1163,7 +1163,7 @@ namespace RBX_Alt_Manager
             // 
             this.cfgbtn1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.cfgbtn1.BackColor = System.Drawing.SystemColors.ActiveCaption;
-            this.cfgbtn1.Location = new System.Drawing.Point(1013, 9);
+            this.cfgbtn1.Location = new System.Drawing.Point(1091, 9);
             this.cfgbtn1.Name = "cfgbtn1";
             this.cfgbtn1.Size = new System.Drawing.Size(111, 32);
             this.cfgbtn1.TabIndex = 1502;
@@ -1191,7 +1191,7 @@ namespace RBX_Alt_Manager
             this.panel2.Controls.Add(this.SolveCaptchaButton);
             this.panel2.Location = new System.Drawing.Point(5, 9);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(297, 720);
+            this.panel2.Size = new System.Drawing.Size(375, 720);
             this.panel2.TabIndex = 1502;
             this.panel2.Paint += new System.Windows.Forms.PaintEventHandler(this.panel2_Paint);
             // 
@@ -1207,7 +1207,7 @@ namespace RBX_Alt_Manager
             this.panel3.Controls.Add(this.TwoFACodeTextBox);
             this.panel3.Controls.Add(this.AddCookieButton);
             this.panel3.Controls.Add(this.AddUserPassButton);
-            this.panel3.Location = new System.Drawing.Point(306, 8);
+            this.panel3.Location = new System.Drawing.Point(384, 8);
             this.panel3.Name = "panel3";
             this.panel3.Size = new System.Drawing.Size(267, 97);
             this.panel3.TabIndex = 1504;
@@ -1235,7 +1235,7 @@ namespace RBX_Alt_Manager
             // 
             this.button2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.button2.BackColor = System.Drawing.SystemColors.ActiveCaption;
-            this.button2.Location = new System.Drawing.Point(862, 9);
+            this.button2.Location = new System.Drawing.Point(940, 9);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(148, 32);
             this.button2.TabIndex = 1505;
@@ -1250,7 +1250,7 @@ namespace RBX_Alt_Manager
             this.DescarteButton.FlatAppearance.BorderSize = 0;
             this.DescarteButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.DescarteButton.ForeColor = System.Drawing.Color.White;
-            this.DescarteButton.Location = new System.Drawing.Point(734, 9);
+            this.DescarteButton.Location = new System.Drawing.Point(812, 9);
             this.DescarteButton.Name = "DescarteButton";
             this.DescarteButton.Size = new System.Drawing.Size(123, 32);
             this.DescarteButton.TabIndex = 1506;
@@ -1272,7 +1272,7 @@ namespace RBX_Alt_Manager
             this.panel4.Controls.Add(this.PANELFOTO);
             this.panel4.Location = new System.Drawing.Point(5, 735);
             this.panel4.Name = "panel4";
-            this.panel4.Size = new System.Drawing.Size(1119, 124);
+            this.panel4.Size = new System.Drawing.Size(1197, 124);
             this.panel4.TabIndex = 1507;
             // 
             // label5
@@ -1362,7 +1362,7 @@ namespace RBX_Alt_Manager
             // 
             this.sellRbxBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.sellRbxBtn.BackColor = System.Drawing.SystemColors.ActiveCaption;
-            this.sellRbxBtn.Location = new System.Drawing.Point(579, 9);
+            this.sellRbxBtn.Location = new System.Drawing.Point(657, 9);
             this.sellRbxBtn.Name = "sellRbxBtn";
             this.sellRbxBtn.Size = new System.Drawing.Size(149, 32);
             this.sellRbxBtn.TabIndex = 1601;
@@ -1412,7 +1412,7 @@ namespace RBX_Alt_Manager
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1131, 862);
+            this.ClientSize = new System.Drawing.Size(1209, 862);
             this.Controls.Add(this.sellRbxBtn);
             this.Controls.Add(this.panel4);
             this.Controls.Add(this.DescarteButton);
@@ -1430,7 +1430,7 @@ namespace RBX_Alt_Manager
             this.HelpButton = true;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
-            this.MinimumSize = new System.Drawing.Size(900, 340);
+            this.MinimumSize = new System.Drawing.Size(978, 340);
             this.Name = "AccountManager";
             this.Text = "Blox Brasil Gerenciador de Contas";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.AccountManager_FormClosing);
