@@ -105,6 +105,20 @@ public static Color Lerp(this Color s, Color t, float k)
 
     public static double ToRobloxTick(this DateTime Date) => ((Date - Epoch).Ticks / TimeSpan.TicksPerSecond) + ((double)Date.Millisecond / 1000);
 
+    /// <summary>
+    /// Retorna todos os processos do Roblox Player, independente do nome do executável.
+    /// Suporta RobloxPlayerBeta (antigo) e RobloxPlayer (novo).
+    /// </summary>
+    public static Process[] GetRobloxProcesses()
+    {
+        var names = new[] { "RobloxPlayerBeta", "RobloxPlayer" };
+        return names.SelectMany(name =>
+        {
+            try { return Process.GetProcessesByName(name); }
+            catch { return Array.Empty<Process>(); }
+        }).ToArray();
+    }
+
     public static string GetCommandLine(this Process process)
     {
         using ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT CommandLine FROM Win32_Process WHERE ProcessId = " + process.Id);
@@ -246,6 +260,7 @@ public static Color Lerp(this Color s, Color t, float k)
     {
         foreach (Control control in Controls)
         {
+            // Aplicar tema por tipo de controle
             if (control is PictureBox)
             {
                 control.BackColor = Color.Transparent;
@@ -268,17 +283,11 @@ public static Color Lerp(this Color s, Color t, float k)
             }
             else if (control is TextBox || control is RichTextBox)
             {
-                if (control is BorderedTextBox)
-                {
-                    BorderedTextBox b = control as BorderedTextBox;
-                    b.BorderColor = ThemeEditor.TextBoxesBorder;
-                }
+                if (control is BorderedTextBox btb)
+                    btb.BorderColor = ThemeEditor.TextBoxesBorder;
 
-                if (control is BorderedRichTextBox)
-                {
-                    BorderedRichTextBox b = control as BorderedRichTextBox;
-                    b.BorderColor = ThemeEditor.TextBoxesBorder;
-                }
+                if (control is BorderedRichTextBox brtb)
+                    brtb.BorderColor = ThemeEditor.TextBoxesBorder;
 
                 control.BackColor = ThemeEditor.TextBoxesBackground;
                 control.ForeColor = ThemeEditor.TextBoxesForeground;
@@ -289,9 +298,49 @@ public static Color Lerp(this Color s, Color t, float k)
                 control.ForeColor = ThemeEditor.LabelForeground;
             }
             else if (control is ProgressBar)
+            {
                 control.BackColor = ThemeEditor.LabelBackground;
-            else if (control is Panel)
+            }
+            else if (control is ComboBox combo)
+            {
+                combo.BackColor = ThemeEditor.TextBoxesBackground;
+                combo.ForeColor = ThemeEditor.TextBoxesForeground;
+                combo.FlatStyle = FlatStyle.Flat;
+            }
+            else if (control is ListBox listBox)
+            {
+                listBox.BackColor = ThemeEditor.TextBoxesBackground;
+                listBox.ForeColor = ThemeEditor.TextBoxesForeground;
+            }
+            else if (control is NumericUpDown numeric)
+            {
+                numeric.BackColor = ThemeEditor.TextBoxesBackground;
+                numeric.ForeColor = ThemeEditor.TextBoxesForeground;
+            }
+            else if (control is BrightIdeasSoftware.ObjectListView olv)
+            {
+                olv.BackColor = ThemeEditor.AccountBackground;
+                olv.ForeColor = ThemeEditor.AccountForeground;
+            }
+            else if (control is TabControl tabControl)
+            {
+                tabControl.BackColor = ThemeEditor.FormsBackground;
+                tabControl.ForeColor = ThemeEditor.FormsForeground;
+            }
+            else if (control is LinkLabel link)
+            {
+                link.LinkColor = ThemeEditor.LabelForeground;
+                link.VisitedLinkColor = ThemeEditor.LabelForeground;
+            }
+
+            // Recursar em TODOS os containers que possuem filhos
+            // (Panel, TabControl, TabPage, FlowLayoutPanel, GroupBox, SplitContainer, etc.)
+            if (control.HasChildren && !(control is TextBox) && !(control is RichTextBox)
+                && !(control is ComboBox) && !(control is NumericUpDown)
+                && !(control is ListBox) && !(control is BrightIdeasSoftware.ObjectListView))
+            {
                 control.Controls.ApplyTheme();
+            }
         }
     }
 

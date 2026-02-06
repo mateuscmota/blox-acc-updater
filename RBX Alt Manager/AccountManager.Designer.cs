@@ -54,6 +54,7 @@ namespace RBX_Alt_Manager
             this.moveGroupUpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.copySecurityTokenToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.bypassCookieToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.setDescriptionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.setHotkeyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.syncToSupabaseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewHistoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -253,12 +254,13 @@ namespace RBX_Alt_Manager
             this.moveGroupUpToolStripMenuItem,
             this.copySecurityTokenToolStripMenuItem,
             this.bypassCookieToolStripMenuItem,
+            this.setDescriptionToolStripMenuItem,
             this.setHotkeyToolStripMenuItem,
             this.syncToSupabaseToolStripMenuItem,
             this.viewHistoryToolStripMenuItem,
             this.removeAccountToolStripMenuItem});
             this.AccountsStrip.Name = "contextMenuStrip1";
-            this.AccountsStrip.Size = new System.Drawing.Size(238, 290);
+            this.AccountsStrip.Size = new System.Drawing.Size(238, 312);
             // 
             // updateRobuxToolStripMenuItem
             // 
@@ -354,6 +356,13 @@ namespace RBX_Alt_Manager
             this.bypassCookieToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
             this.bypassCookieToolStripMenuItem.Text = "🔄 Bypass Cookie (Auto)";
             this.bypassCookieToolStripMenuItem.Click += new System.EventHandler(this.bypassCookieToolStripMenuItem_Click);
+            // 
+            // setDescriptionToolStripMenuItem
+            // 
+            this.setDescriptionToolStripMenuItem.Name = "setDescriptionToolStripMenuItem";
+            this.setDescriptionToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.setDescriptionToolStripMenuItem.Text = "📝 Definir Descrição";
+            this.setDescriptionToolStripMenuItem.Click += new System.EventHandler(this.SetDescription_Click);
             // 
             // setHotkeyToolStripMenuItem
             // 
@@ -1460,6 +1469,7 @@ namespace RBX_Alt_Manager
         private System.Windows.Forms.ToolStripMenuItem updateRobuxToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem addAccountsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem removeAccountToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem setDescriptionToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem setHotkeyToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem syncToSupabaseToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem viewHistoryToolStripMenuItem;

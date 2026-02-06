@@ -581,26 +581,26 @@ namespace RBX_Alt_Manager.Forms
 
         private void MinimizeRoblox_Click(object sender, EventArgs e)
         {
-            foreach (Process p in Process.GetProcessesByName("RobloxPlayerBeta"))
+            foreach (Process p in Utilities.GetRobloxProcesses())
                 Utilities.PostMessage(p.MainWindowHandle, 0x0112, 0xF020, 0);
         }
 
         private void CloseRoblox_Click(object sender, EventArgs e)
         {
-            foreach (Process p in Process.GetProcessesByName("RobloxPlayerBeta"))
+            foreach (Process p in Utilities.GetRobloxProcesses())
                 try { p.Kill(); } catch { }
         }
 
         private void MinimzeTimer_Tick(object sender, EventArgs e)
         {
-            foreach (Process p in Process.GetProcessesByName("RobloxPlayerBeta"))
+            foreach (Process p in Utilities.GetRobloxProcesses())
                 Utilities.PostMessage(p.MainWindowHandle, 0x0112, 0xF020, 0);
         }
 
         private void CloseTimer_Tick(object sender, EventArgs e)
         {
             int ActualCount = 0;
-            Process[] Processes = Process.GetProcessesByName("RobloxPlayerBeta");
+            Process[] Processes = Utilities.GetRobloxProcesses();
 
             foreach (Process p in Processes) if (p.MainWindowHandle != IntPtr.Zero) ActualCount++;
 
@@ -766,10 +766,10 @@ namespace RBX_Alt_Manager.Forms
 
         private void ClearDeadProcesses()
         {
-            foreach (Process process in Process.GetProcesses())
+            foreach (Process process in Utilities.GetRobloxProcesses())
             {
-                if (process.ProcessName == "RobloxPlayerBeta" && Utilities.MD5(process.MainWindowTitle) == "6B19DD3A0E36191A937AB6FD96869A9D")
-                    process.Kill();
+                if (Utilities.MD5(process.MainWindowTitle) == "6B19DD3A0E36191A937AB6FD96869A9D")
+                    try { process.Kill(); } catch { }
             }
         }
 

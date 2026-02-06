@@ -249,6 +249,7 @@ namespace RBX_Alt_Manager
             if (!General.Exists("UseCefSharpBrowser")) General.Set("UseCefSharpBrowser", "false");
 
             if (!General.Exists("EnableMultiRbx")) General.Set("EnableMultiRbx", "true");
+            if (!General.Exists("CloseRobloxOnExit")) General.Set("CloseRobloxOnExit", "true");
 
             if (!Developer.Exists("DevMode")) Developer.Set("DevMode", "true");
             if (!Developer.Exists("EnableWebServer")) Developer.Set("EnableWebServer", "false");
@@ -1889,6 +1890,9 @@ namespace RBX_Alt_Manager
             if (!UpdateMultiRoblox() && !General.Get<bool>("HideRbxAlert"))
                 MessageBox.Show("WARNING: Roblox is currently running, multi roblox will not work until you restart the account manager with roblox closed.", "Roblox Account Manager", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
+            // Tentar adicionar exclusão do Defender para evitar que o AV bloqueie o Roblox
+            EnsureRobloxDefenderExclusion();
+
             int Major = Environment.OSVersion.Version.Major, Minor = Environment.OSVersion.Version.Minor;
 
             PuppeteerSupported = !(Major < 6 || (Major == 6 && Minor <= 1));
@@ -1966,6 +1970,86 @@ namespace RBX_Alt_Manager
                     });
                 }
             }
+        }
+
+        /// <summary>
+        /// Tenta adicionar exclusão do Windows Defender para a pasta do Roblox.
+        /// Isso evita que o antivírus bloqueie arquivos baixados pelo bootstrapper do Roblox,
+        /// o que causa problemas com MultiRoblox (re-download constante).
+        /// Só tenta uma vez (salva flag no INI).
+        /// </summary>
+        private void EnsureRobloxDefenderExclusion()
+        {
+            if (General.Get<bool>("DefenderExclusionDone")) return;
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    string robloxPath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "Roblox");
+
+                    if (!Directory.Exists(robloxPath)) return;
+
+                    // Verificar se já existe exclusão
+                    var checkProcess = new Process();
+                    checkProcess.StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "powershell.exe",
+                        Arguments = "-NoProfile -Command \"(Get-MpPreference).ExclusionPath\"",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    };
+                    checkProcess.Start();
+                    string existingExclusions = checkProcess.StandardOutput.ReadToEnd();
+                    checkProcess.WaitForExit(5000);
+
+                    if (existingExclusions.Contains(robloxPath))
+                    {
+                        AddLog("✅ [Defender] Exclusão do Roblox já configurada");
+                        this.InvokeIfRequired(() => { General.Set("DefenderExclusionDone", "true"); IniSettings.Save("RAMSettings.ini"); });
+                        return;
+                    }
+
+                    // Tentar adicionar exclusão (requer admin)
+                    var addProcess = new Process();
+                    addProcess.StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "powershell.exe",
+                        Arguments = $"-NoProfile -Command \"Add-MpPreference -ExclusionPath '{robloxPath}'\"",
+                        UseShellExecute = true,
+                        Verb = "runas",
+                        CreateNoWindow = true,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+                    addProcess.Start();
+                    addProcess.WaitForExit(10000);
+
+                    if (addProcess.ExitCode == 0)
+                    {
+                        AddLog($"✅ [Defender] Exclusão adicionada: {robloxPath}");
+                        this.InvokeIfRequired(() => { General.Set("DefenderExclusionDone", "true"); IniSettings.Save("RAMSettings.ini"); });
+                    }
+                    else
+                    {
+                        AddLog($"⚠️ [Defender] Não foi possível adicionar exclusão (código: {addProcess.ExitCode})");
+                        this.InvokeIfRequired(() => { General.Set("DefenderExclusionDone", "true"); IniSettings.Save("RAMSettings.ini"); });
+                    }
+                }
+                catch (System.ComponentModel.Win32Exception)
+                {
+                    // Usuário cancelou o UAC
+                    AddLog("⚠️ [Defender] Permissão negada. Se tiver problemas com o Roblox re-baixando, adicione exclusão manualmente no Windows Defender para: %LocalAppData%\\Roblox");
+                    this.InvokeIfRequired(() => { General.Set("DefenderExclusionDone", "true"); IniSettings.Save("RAMSettings.ini"); });
+                }
+                catch (Exception ex)
+                {
+                    if (DebugModeAtivo)
+                        AddLog($"⚠️ [Defender] Erro: {ex.Message}");
+                }
+            });
         }
 
         public bool UpdateMultiRoblox()
@@ -2528,7 +2612,7 @@ namespace RBX_Alt_Manager
                         Text = gameName.ToUpper(),
                         Font = new Font("Segoe UI", 7F, FontStyle.Bold),
                         ForeColor = Color.LimeGreen,
-                        BackColor = Color.FromArgb(45, 45, 45),
+                        BackColor = ThemeEditor.ItemBackground,
                         Size = new Size(headerWidth, 18),
                         TextAlign = ContentAlignment.MiddleCenter,
                         Margin = new Padding(0, 4, 0, 2),
@@ -2542,6 +2626,7 @@ namespace RBX_Alt_Manager
                         gameHeader.Click += (s, e) =>
                         {
                             PlaceID.Text = pid.ToString();
+                            JobID.Text = "";
                             AddLog($"🎮 PlaceID preenchido: {pid} ({gameName})");
                         };
                     }
@@ -2571,7 +2656,7 @@ namespace RBX_Alt_Manager
             var panel = new Panel
             {
                 Size = new Size(panelWidth, 24),
-                BackColor = Color.FromArgb(50, 50, 50),
+                BackColor = ThemeEditor.PanelBackground,
                 Margin = new Padding(0, 1, 0, 0)
             };
 
@@ -2579,7 +2664,7 @@ namespace RBX_Alt_Manager
             {
                 Text = itemName,
                 Font = new Font("Segoe UI", 7F),
-                ForeColor = Color.White,
+                ForeColor = ThemeEditor.FormsForeground,
                 Location = new System.Drawing.Point(2, 4),
                 Size = new Size(panelWidth - 120, 16),
                 AutoEllipsis = true
@@ -2605,8 +2690,8 @@ namespace RBX_Alt_Manager
                 Text = FormatNumberWithThousands(inventory.Quantity),
                 Name = $"estoqueqty_{inventory.Id}",
                 Font = new Font("Segoe UI", 7.5F),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = ThemeEditor.TextBoxesForeground,
+                BackColor = ThemeEditor.HeaderBackground,
                 BorderStyle = BorderStyle.None,
                 TextAlign = HorizontalAlignment.Center,
                 Size = new Size(68, 16),
@@ -3000,12 +3085,12 @@ namespace RBX_Alt_Manager
             FriendsListPanel.AutoScroll = true;
             FriendsListPanel.FlowDirection = FlowDirection.LeftToRight;
             FriendsListPanel.WrapContents = false;
-            FriendsListPanel.BackColor = System.Drawing.Color.FromArgb(41, 41, 41); // #292929
+            FriendsListPanel.BackColor = ThemeEditor.FormsBackground;
             FriendsListPanel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right; // Ancoragem
             
             // Adicionar ao panel4
             panel4.Controls.Add(FriendsListPanel);
-            panel4.BackColor = System.Drawing.Color.FromArgb(41, 41, 41); // #292929
+            panel4.BackColor = ThemeEditor.FormsBackground;
             panel4.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right; // Ancoragem do panel4
             FriendsListPanel.BringToFront();
             
@@ -3403,7 +3488,7 @@ namespace RBX_Alt_Manager
             var panel = new Panel();
             panel.Size = new System.Drawing.Size(80, 112);
             panel.BorderStyle = BorderStyle.FixedSingle;
-            panel.BackColor = System.Drawing.Color.FromArgb(50, 50, 50);
+            panel.BackColor = ThemeEditor.PanelBackground;
             panel.Margin = new Padding(2, 0, 2, 0);
 
             // Avatar (no topo)
@@ -3421,7 +3506,7 @@ namespace RBX_Alt_Manager
             var displayNameLabel = new Label();
             displayNameLabel.Text = friend.DisplayName?.Length > 9 ? friend.DisplayName.Substring(0, 9) + ".." : friend.DisplayName ?? "???";
             displayNameLabel.Font = new System.Drawing.Font("Segoe UI", 7.5F, System.Drawing.FontStyle.Bold);
-            displayNameLabel.ForeColor = System.Drawing.Color.White;
+            displayNameLabel.ForeColor = ThemeEditor.FormsForeground;
             displayNameLabel.BackColor = System.Drawing.Color.Transparent;
             displayNameLabel.Location = new System.Drawing.Point(1, 44);
             displayNameLabel.Size = new System.Drawing.Size(76, 14);
@@ -3461,7 +3546,7 @@ namespace RBX_Alt_Manager
                 followBtn.Font = new System.Drawing.Font("Segoe UI", 5.5F, System.Drawing.FontStyle.Bold);
                 followBtn.Location = new System.Drawing.Point(3, 80);
                 followBtn.Size = new System.Drawing.Size(72, 18);
-                followBtn.Enabled = friend.PlaceId > 0;
+                followBtn.Enabled = friend.PlaceId > 0 && !string.IsNullOrEmpty(friend.JobId);
                 followBtn.BackColor = System.Drawing.Color.FromArgb(88, 101, 242);
                 followBtn.ForeColor = System.Drawing.Color.White;
                 followBtn.FlatStyle = FlatStyle.Flat;
@@ -3738,9 +3823,62 @@ namespace RBX_Alt_Manager
 
         private void SetDescription_Click(object sender, EventArgs e)
         {
-            foreach (Account account in AccountsView.SelectedObjects)
+            if (SelectedAccount == null)
+            {
+                MessageBox.Show("Selecione uma conta primeiro!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
-            RefreshView();
+            using (var descForm = new Form())
+            {
+                descForm.Text = $"Definir Descrição - {SelectedAccount.Username}";
+                descForm.Size = new System.Drawing.Size(400, 250);
+                descForm.StartPosition = FormStartPosition.CenterParent;
+                descForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                descForm.MaximizeBox = false;
+                descForm.MinimizeBox = false;
+
+                var label = new Label();
+                label.Text = "Descrição:";
+                label.Location = new System.Drawing.Point(20, 15);
+                label.AutoSize = true;
+                descForm.Controls.Add(label);
+
+                var textBox = new TextBox();
+                textBox.Multiline = true;
+                textBox.ScrollBars = ScrollBars.Vertical;
+                textBox.Location = new System.Drawing.Point(20, 35);
+                textBox.Size = new System.Drawing.Size(345, 130);
+                textBox.MaxLength = 5000;
+                textBox.Text = SelectedAccount.Description ?? "";
+                descForm.Controls.Add(textBox);
+
+                var okButton = new Button();
+                okButton.Text = "Salvar";
+                okButton.Location = new System.Drawing.Point(200, 175);
+                okButton.DialogResult = DialogResult.OK;
+                descForm.Controls.Add(okButton);
+
+                var cancelButton = new Button();
+                cancelButton.Text = "Cancelar";
+                cancelButton.Location = new System.Drawing.Point(290, 175);
+                cancelButton.DialogResult = DialogResult.Cancel;
+                descForm.Controls.Add(cancelButton);
+
+                descForm.AcceptButton = okButton;
+                descForm.CancelButton = cancelButton;
+
+                if (descForm.ShowDialog() == DialogResult.OK)
+                {
+                    foreach (Account account in AccountsView.SelectedObjects)
+                    {
+                        account.Description = textBox.Text;
+                    }
+
+                    RefreshView();
+                    AddLog($"📝 Descrição atualizada para {AccountsView.SelectedObjects.Count} conta(s)");
+                }
+            }
         }
 
         private void JoinServer_Click(object sender, EventArgs e)
@@ -3770,7 +3908,9 @@ namespace RBX_Alt_Manager
 
             if (!long.TryParse(PlaceID.Text, out long PlaceId)) return;
 
-            if (!PlaceTimer.Enabled && PlaceId > 0)
+            // Só adicionar RecentGame se NÃO houver share link no JobID (o jogo real será resolvido depois)
+            bool jobHasShareLink = Regex.IsMatch(JobID.Text, @"share\?code=[a-f0-9]+", RegexOptions.IgnoreCase);
+            if (!PlaceTimer.Enabled && PlaceId > 0 && !jobHasShareLink)
                 _ = Task.Run(() => AddRecentGame(new Game(PlaceId)));
 
             CancelLaunching();
@@ -3788,7 +3928,35 @@ namespace RBX_Alt_Manager
         private async void AutoFixCaptchaThenJoin(long placeId, bool vipServer, bool launchMultiple)
         {
             string jobId = vipServer ? JobID.Text.Substring(4) : JobID.Text;
-            
+
+            // Se o JobID contém um share link, resolver para obter o PlaceID real
+            var shareMatch = Regex.Match(jobId, @"share\?code=([a-f0-9]+)", RegexOptions.IgnoreCase);
+            if (shareMatch.Success && SelectedAccount != null)
+            {
+                string shareCode = shareMatch.Groups[1].Value;
+                AddLog($"🔗 Share link detectado no Server Privado, resolvendo...");
+                try
+                {
+                    var resolveResult = await SelectedAccount.ResolveShareLink(shareCode);
+                    if (resolveResult.success && resolveResult.placeId > 0)
+                    {
+                        placeId = resolveResult.placeId;
+                        PlaceID.Text = placeId.ToString();
+                        AddLog($"✅ Share link resolvido → PlaceID real: {placeId}");
+
+                        _ = Task.Run(() => AddRecentGame(new Game(placeId)));
+                    }
+                    else
+                    {
+                        AddLog($"⚠️ Falha ao resolver share link: {resolveResult.error}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"⚠️ Erro ao resolver share link: {ex.Message}");
+                }
+            }
+
             AddLog($"🎮 Entrar no Jogo chamado - PlaceID: {placeId}, VIP: {vipServer}, Múltiplas: {launchMultiple}");
             
             // Verificar se há extensão anti-captcha configurada
@@ -4155,8 +4323,8 @@ namespace RBX_Alt_Manager
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false,
-                BackColor = Color.FromArgb(30, 30, 30),
-                ForeColor = Color.White
+                BackColor = ThemeEditor.FormsBackground,
+                ForeColor = ThemeEditor.FormsForeground
             };
 
             // Label da conta
@@ -4183,8 +4351,8 @@ namespace RBX_Alt_Manager
                 Location = new System.Drawing.Point(20, 75),
                 Size = new Size(340, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = Color.FromArgb(45, 45, 45),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.TextBoxesBackground,
+                ForeColor = ThemeEditor.TextBoxesForeground,
                 FlatStyle = FlatStyle.Flat
             };
 
@@ -4202,8 +4370,8 @@ namespace RBX_Alt_Manager
                 Location = new System.Drawing.Point(20, 135),
                 Size = new Size(340, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = Color.FromArgb(45, 45, 45),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.TextBoxesBackground,
+                ForeColor = ThemeEditor.TextBoxesForeground,
                 FlatStyle = FlatStyle.Flat,
                 Enabled = false
             };
@@ -4221,8 +4389,8 @@ namespace RBX_Alt_Manager
             {
                 Location = new System.Drawing.Point(20, 195),
                 Size = new Size(120, 25),
-                BackColor = Color.FromArgb(45, 45, 45),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.TextBoxesBackground,
+                ForeColor = ThemeEditor.TextBoxesForeground,
                 Text = "0",
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -4270,8 +4438,8 @@ namespace RBX_Alt_Manager
                 Text = "Cancelar",
                 Location = new System.Drawing.Point(240, 280),
                 Size = new Size(120, 35),
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.ButtonsBackground,
+                ForeColor = ThemeEditor.ButtonsForeground,
                 FlatStyle = FlatStyle.Flat,
                 DialogResult = DialogResult.Cancel,
                 Cursor = Cursors.Hand
@@ -4480,8 +4648,8 @@ namespace RBX_Alt_Manager
                 FormBorderStyle = FormBorderStyle.Sizable,
                 MaximizeBox = true,
                 MinimizeBox = false,
-                BackColor = Color.FromArgb(30, 30, 30),
-                ForeColor = Color.White
+                BackColor = ThemeEditor.FormsBackground,
+                ForeColor = ThemeEditor.FormsForeground
             };
 
             var loadingLabel = new Label
@@ -4507,8 +4675,8 @@ namespace RBX_Alt_Manager
                     View = View.Details,
                     FullRowSelect = true,
                     GridLines = false,
-                    BackColor = Color.FromArgb(30, 30, 30),
-                    ForeColor = Color.White,
+                    BackColor = ThemeEditor.FormsBackground,
+                    ForeColor = ThemeEditor.FormsForeground,
                     Font = new Font("Segoe UI", 9F),
                     BorderStyle = BorderStyle.None,
                     HeaderStyle = ColumnHeaderStyle.Nonclickable
@@ -4548,7 +4716,7 @@ namespace RBX_Alt_Manager
                 {
                     Dock = DockStyle.Bottom,
                     Height = 40,
-                    BackColor = Color.FromArgb(30, 30, 30)
+                    BackColor = ThemeEditor.FormsBackground
                 };
 
                 var countLabel = new Label
@@ -4564,14 +4732,14 @@ namespace RBX_Alt_Manager
                 {
                     Text = "Fechar",
                     Font = new Font("Segoe UI", 8.5F),
-                    ForeColor = Color.White,
-                    BackColor = Color.FromArgb(60, 60, 60),
+                    ForeColor = ThemeEditor.ButtonsForeground,
+                    BackColor = ThemeEditor.ButtonsBackground,
                     FlatStyle = FlatStyle.Flat,
                     Size = new Size(80, 28),
                     Anchor = AnchorStyles.Right,
                     Location = new System.Drawing.Point(form.ClientSize.Width - 95, 6)
                 };
-                closeButton.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 80);
+                closeButton.FlatAppearance.BorderColor = ThemeEditor.ButtonsBorder;
                 closeButton.Click += (s, ev) => form.Close();
 
                 bottomPanel.Controls.Add(countLabel);
@@ -4594,7 +4762,7 @@ namespace RBX_Alt_Manager
             if (string.IsNullOrWhiteSpace(text)) return 0;
 
             string original = text;
-            text = text.Trim().ToLower().Replace(".", "").Replace(",", "");
+            text = text.Trim().ToLower().Replace(",", "");
 
             long multiplier = 1;
             string suffix = "";
@@ -4927,6 +5095,13 @@ namespace RBX_Alt_Manager
             Classes.InventorySyncService.Instance.Stop();
             AltManagerWS?.Stop();
 
+            // Matar processos zumbis do Roblox ao fechar o app
+            if (General.Get<bool>("CloseRobloxOnExit"))
+            {
+                foreach (Process p in Utilities.GetRobloxProcesses())
+                    try { p.Kill(); } catch { }
+            }
+
             if (PlaceID == null || string.IsNullOrEmpty(PlaceID.Text)) return;
 
             General.Set("SavedPlaceId", PlaceID.Text);
@@ -5176,6 +5351,8 @@ namespace RBX_Alt_Manager
         {
             if (PlaceTimer.Enabled) PlaceTimer.Stop();
 
+            LabelPlaceID.Text = "ID do Jogo";
+
             PlaceTimer.Start();
         }
 
@@ -5185,7 +5362,14 @@ namespace RBX_Alt_Manager
 
             PlaceTimer.Stop();
 
-            RestRequest request = new RestRequest($"v2/assets/{PlaceID.Text}/details", Method.Get);
+            string placeText = PlaceID.Text.Trim();
+            if (string.IsNullOrEmpty(placeText) || !long.TryParse(placeText, out long placeIdValue) || placeIdValue <= 0)
+            {
+                LabelPlaceID.Text = "ID do Jogo";
+                return;
+            }
+
+            RestRequest request = new RestRequest($"v2/assets/{placeText}/details", Method.Get);
             request.AddHeader("Accept", "application/json");
             RestResponse response = await EconClient.ExecuteAsync(request);
 
@@ -5193,6 +5377,10 @@ namespace RBX_Alt_Manager
             {
                 ProductInfo placeInfo = JsonConvert.DeserializeObject<ProductInfo>(response.Content);
 
+                if (placeInfo != null && !string.IsNullOrEmpty(placeInfo.Name))
+                    LabelPlaceID.Text = placeInfo.Name;
+                else
+                    LabelPlaceID.Text = "ID do Jogo";
             }
         }
 
@@ -5736,13 +5924,13 @@ namespace RBX_Alt_Manager
             logsPopup.Text = "📋 Logs - Blox Brasil";
             logsPopup.Size = new System.Drawing.Size(800, 600);
             logsPopup.StartPosition = FormStartPosition.CenterParent;
-            logsPopup.BackColor = System.Drawing.Color.FromArgb(18, 18, 18);
+            logsPopup.BackColor = ThemeEditor.FormsBackground;
             logsPopup.Icon = this.Icon;
 
             RichTextBox logsTextBox = new RichTextBox();
             logsTextBox.Dock = DockStyle.Fill;
-            logsTextBox.BackColor = System.Drawing.Color.FromArgb(25, 25, 25);
-            logsTextBox.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153);
+            logsTextBox.BackColor = ThemeEditor.TextBoxesBackground;
+            logsTextBox.ForeColor = System.Drawing.Color.FromArgb(52, 211, 153); // Semantic: terminal green
             logsTextBox.Font = new System.Drawing.Font("Consolas", 10F);
             logsTextBox.ReadOnly = true;
             logsTextBox.BorderStyle = BorderStyle.None;
@@ -5754,8 +5942,8 @@ namespace RBX_Alt_Manager
             closeButton.Dock = DockStyle.Bottom;
             closeButton.Height = 40;
             closeButton.FlatStyle = FlatStyle.Flat;
-            closeButton.BackColor = System.Drawing.Color.FromArgb(45, 156, 219);
-            closeButton.ForeColor = System.Drawing.Color.White;
+            closeButton.BackColor = ThemeEditor.ButtonsBackground;
+            closeButton.ForeColor = ThemeEditor.ButtonsForeground;
             closeButton.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             closeButton.Click += (s, args) => logsPopup.Close();
 
@@ -5945,8 +6133,8 @@ namespace RBX_Alt_Manager
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false,
-                BackColor = Color.FromArgb(30, 30, 30),
-                ForeColor = Color.White
+                BackColor = ThemeEditor.FormsBackground,
+                ForeColor = ThemeEditor.FormsForeground
             };
 
             var titleLabel = new Label
@@ -5961,20 +6149,20 @@ namespace RBX_Alt_Manager
 
             // Usuário
             var lblUser = new Label { Text = "Usuário:", Font = new Font("Segoe UI", 9F, FontStyle.Bold), Location = new System.Drawing.Point(20, 60), Size = new Size(80, 20) };
-            var txtUser = new TextBox { Text = "contato@robloxbrasil.com.br", Location = new System.Drawing.Point(100, 58), Size = new Size(230, 22), ReadOnly = true, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
-            var btnCopyUser = new Button { Text = "Copiar", Location = new System.Drawing.Point(335, 56), Size = new Size(55, 24), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, Cursor = Cursors.Hand };
+            var txtUser = new TextBox { Text = "contato@robloxbrasil.com.br", Location = new System.Drawing.Point(100, 58), Size = new Size(230, 22), ReadOnly = true, BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+            var btnCopyUser = new Button { Text = "Copiar", Location = new System.Drawing.Point(335, 56), Size = new Size(55, 24), FlatStyle = FlatStyle.Flat, BackColor = ThemeEditor.ButtonsBackground, ForeColor = ThemeEditor.ButtonsForeground, Cursor = Cursors.Hand };
             btnCopyUser.Click += (s, ev) => { Clipboard.SetText(txtUser.Text); btnCopyUser.Text = "OK!"; Task.Delay(1000).ContinueWith(_ => popup.Invoke((Action)(() => btnCopyUser.Text = "Copiar"))); };
 
             // Senha 1
             var lblPass1 = new Label { Text = "Senha 1:", Font = new Font("Segoe UI", 9F, FontStyle.Bold), Location = new System.Drawing.Point(20, 95), Size = new Size(80, 20) };
-            var txtPass1 = new TextBox { Text = "robloxbloxbrasil123", Location = new System.Drawing.Point(100, 93), Size = new Size(230, 22), ReadOnly = true, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
-            var btnCopyPass1 = new Button { Text = "Copiar", Location = new System.Drawing.Point(335, 91), Size = new Size(55, 24), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, Cursor = Cursors.Hand };
+            var txtPass1 = new TextBox { Text = "robloxbloxbrasil123", Location = new System.Drawing.Point(100, 93), Size = new Size(230, 22), ReadOnly = true, BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+            var btnCopyPass1 = new Button { Text = "Copiar", Location = new System.Drawing.Point(335, 91), Size = new Size(55, 24), FlatStyle = FlatStyle.Flat, BackColor = ThemeEditor.ButtonsBackground, ForeColor = ThemeEditor.ButtonsForeground, Cursor = Cursors.Hand };
             btnCopyPass1.Click += (s, ev) => { Clipboard.SetText(txtPass1.Text); btnCopyPass1.Text = "OK!"; Task.Delay(1000).ContinueWith(_ => popup.Invoke((Action)(() => btnCopyPass1.Text = "Copiar"))); };
 
             // Senha 2
             var lblPass2 = new Label { Text = "Senha 2:", Font = new Font("Segoe UI", 9F, FontStyle.Bold), Location = new System.Drawing.Point(20, 130), Size = new Size(80, 20) };
-            var txtPass2 = new TextBox { Text = "bloxbrasil321", Location = new System.Drawing.Point(100, 128), Size = new Size(230, 22), ReadOnly = true, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
-            var btnCopyPass2 = new Button { Text = "Copiar", Location = new System.Drawing.Point(335, 126), Size = new Size(55, 24), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, Cursor = Cursors.Hand };
+            var txtPass2 = new TextBox { Text = "bloxbrasil321", Location = new System.Drawing.Point(100, 128), Size = new Size(230, 22), ReadOnly = true, BackColor = ThemeEditor.TextBoxesBackground, ForeColor = ThemeEditor.TextBoxesForeground };
+            var btnCopyPass2 = new Button { Text = "Copiar", Location = new System.Drawing.Point(335, 126), Size = new Size(55, 24), FlatStyle = FlatStyle.Flat, BackColor = ThemeEditor.ButtonsBackground, ForeColor = ThemeEditor.ButtonsForeground, Cursor = Cursors.Hand };
             btnCopyPass2.Click += (s, ev) => { Clipboard.SetText(txtPass2.Text); btnCopyPass2.Text = "OK!"; Task.Delay(1000).ContinueWith(_ => popup.Invoke((Action)(() => btnCopyPass2.Text = "Copiar"))); };
 
             // Separador
@@ -6037,8 +6225,8 @@ namespace RBX_Alt_Manager
                 Text = "Abrir TopUpG sem Cookie",
                 Location = new System.Drawing.Point(20, 230),
                 Size = new Size(370, 32),
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.ButtonsBackground,
+                ForeColor = ThemeEditor.ButtonsForeground,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F),
                 Cursor = Cursors.Hand

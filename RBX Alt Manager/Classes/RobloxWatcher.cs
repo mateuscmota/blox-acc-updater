@@ -60,7 +60,7 @@ namespace RBX_Alt_Manager.Classes
         {
             IntPtr Focused = GetForegroundWindow();
 
-            foreach (var process in Process.GetProcessesByName("RobloxPlayerBeta"))
+            foreach (var process in Utilities.GetRobloxProcesses())
             {
                 if (process.MainWindowHandle == Focused) continue; // Entirely ignore focused windows
 

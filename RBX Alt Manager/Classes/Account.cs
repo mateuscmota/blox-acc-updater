@@ -575,7 +575,7 @@ namespace RBX_Alt_Manager
                 {
                     try
                     {
-                        foreach(Process proc in Process.GetProcessesByName("RobloxPlayerBeta"))
+                        foreach(Process proc in Utilities.GetRobloxProcesses())
                         {
                             var TrackerMatch = Regex.Match(proc.GetCommandLine(), @"\-b (\d+)");
                             string TrackerID = TrackerMatch.Success ? TrackerMatch.Groups[1].Value : string.Empty;
@@ -762,7 +762,7 @@ namespace RBX_Alt_Manager
                 {
                     try
                     {
-                        foreach (Process proc in Process.GetProcessesByName("RobloxPlayerBeta"))
+                        foreach (Process proc in Utilities.GetRobloxProcesses())
                         {
                             try
                             {
@@ -1098,7 +1098,7 @@ namespace RBX_Alt_Manager
         /// API: apis.roblox.com/sharelinks/v1/resolve-link
         /// Response contains experienceInviteData with placeId and instanceId
         /// </summary>
-        private async Task<(bool success, long placeId, string gameInstanceId, string privateServerLinkCode, string error)> ResolveShareLink(string shareCode)
+        internal async Task<(bool success, long placeId, string gameInstanceId, string privateServerLinkCode, string error)> ResolveShareLink(string shareCode)
         {
             try
             {
@@ -1226,7 +1226,7 @@ namespace RBX_Alt_Manager
             {
                 await Task.Delay(350);
 
-                foreach (var process in Process.GetProcessesByName("RobloxPlayerBeta").Reverse())
+                foreach (var process in Utilities.GetRobloxProcesses().Reverse())
                 {
                     if (process.MainWindowHandle == IntPtr.Zero) continue;
 

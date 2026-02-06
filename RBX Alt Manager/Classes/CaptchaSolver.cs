@@ -2147,10 +2147,12 @@ console.log('[TokenCapture BG] Background script loaded');
                     "--disable-default-apps"
                 };
 
+                args.Add("--window-size=500,500");
+
                 var options = new LaunchOptions
                 {
                     Headless = false,
-                    DefaultViewport = null,
+                    DefaultViewport = new ViewPortOptions { Width = 500, Height = 500 },
                     Args = args.ToArray(),
                     IgnoreHTTPSErrors = true
                 };

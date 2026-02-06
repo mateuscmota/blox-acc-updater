@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft.Json;
 using RBX_Alt_Manager.Classes;
+using RBX_Alt_Manager.Forms;
 
 namespace RBX_Alt_Manager.Controls
 {
@@ -239,7 +240,7 @@ namespace RBX_Alt_Manager.Controls
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            this.BackColor = Color.FromArgb(41, 41, 41);
+            this.BackColor = ThemeEditor.FormsBackground;
             this.Size = new Size(310, 682);
 
             // Header Panel
@@ -247,7 +248,7 @@ namespace RBX_Alt_Manager.Controls
             {
                 Dock = DockStyle.Top,
                 Height = 35,
-                BackColor = Color.FromArgb(30, 30, 30),
+                BackColor = ThemeEditor.HeaderBackground,
                 Padding = new Padding(3)
             };
 
@@ -256,8 +257,8 @@ namespace RBX_Alt_Manager.Controls
             {
                 Text = "← Voltar",
                 Font = F7,
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = ThemeEditor.ButtonsForeground,
+                BackColor = ThemeEditor.ButtonsBackground,
                 FlatStyle = FlatStyle.Flat,
                 Size = new Size(55, 22),
                 Location = new Point(3, 6),
@@ -272,7 +273,7 @@ namespace RBX_Alt_Manager.Controls
             {
                 Text = "INVENTÁRIO",
                 Font = F9B,
-                ForeColor = Color.White,
+                ForeColor = ThemeEditor.FormsForeground,
                 Location = new Point(5, 8),
                 AutoSize = true
             };
@@ -297,8 +298,8 @@ namespace RBX_Alt_Manager.Controls
             {
                 Text = "🔄",
                 Font = F8,
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = ThemeEditor.ButtonsForeground,
+                BackColor = ThemeEditor.ButtonsBackground,
                 FlatStyle = FlatStyle.Flat,
                 Size = new Size(25, 22),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
@@ -314,7 +315,7 @@ namespace RBX_Alt_Manager.Controls
             {
                 Dock = DockStyle.Top,
                 Height = 30,
-                BackColor = Color.FromArgb(30, 30, 30),
+                BackColor = ThemeEditor.HeaderBackground,
                 Padding = new Padding(6, 5, 6, 5)
             };
 
@@ -322,15 +323,15 @@ namespace RBX_Alt_Manager.Controls
             var searchBorder = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(60, 60, 60),
+                BackColor = ThemeEditor.TextBoxesBorder,
                 Padding = new Padding(1)
             };
 
             _searchBox = new TextBox
             {
                 Font = F8_5,
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = ThemeEditor.TextBoxesForeground,
+                BackColor = ThemeEditor.TextBoxesBackground,
                 BorderStyle = BorderStyle.None,
                 Dock = DockStyle.Fill
             };
@@ -354,7 +355,7 @@ namespace RBX_Alt_Manager.Controls
                 AutoScroll = true,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
-                BackColor = Color.FromArgb(41, 41, 41),
+                BackColor = ThemeEditor.FormsBackground,
                 Padding = new Padding(3)
             };
 
@@ -429,11 +430,11 @@ namespace RBX_Alt_Manager.Controls
         {
             int width = _contentPanel.Width - 25;
             bool isFavorite = _favoriteGames.Contains(game.Id);
-            
+
             var panel = new Panel
             {
                 Size = new Size(width, 32),
-                BackColor = Color.FromArgb(50, 50, 50),
+                BackColor = ThemeEditor.PanelBackground,
                 Margin = new Padding(0, 2, 0, 2),
                 Cursor = Cursors.Hand,
                 Tag = game
@@ -467,8 +468,8 @@ namespace RBX_Alt_Manager.Controls
 
             // Menu de contexto para o jogo
             var contextMenu = new ContextMenuStrip();
-            contextMenu.BackColor = Color.FromArgb(45, 45, 45);
-            contextMenu.ForeColor = Color.White;
+            contextMenu.BackColor = ThemeEditor.ItemBackground;
+            contextMenu.ForeColor = ThemeEditor.FormsForeground;
             contextMenu.Renderer = new DarkMenuRenderer();
 
             var editGameItem = new ToolStripMenuItem("✏️ Editar Jogo");
@@ -714,13 +715,13 @@ namespace RBX_Alt_Manager.Controls
             bool hasZeroStock = totalQty == 0;
             
             // Cor baseada no estoque
-            Color itemColor = hasZeroStock ? Color.FromArgb(200, 80, 80) : Color.White; // Vermelho se zero
+            Color itemColor = hasZeroStock ? Color.FromArgb(200, 80, 80) : ThemeEditor.FormsForeground;
             Color arrowColor = hasZeroStock ? Color.FromArgb(200, 80, 80) : Color.LimeGreen;
             
             var panel = new Panel
             {
                 Size = new Size(width, 28),
-                BackColor = Color.FromArgb(45, 45, 45),
+                BackColor = ThemeEditor.ItemBackground,
                 Margin = new Padding(0, 2, 0, 0),
                 Cursor = Cursors.Hand,
                 Tag = item
@@ -767,7 +768,7 @@ namespace RBX_Alt_Manager.Controls
                 Text = "+",
                 Font = F8B,
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(0, 100, 0),
+                BackColor = Color.FromArgb(0, 100, 0), // Semantic: green accent
                 FlatStyle = FlatStyle.Flat,
                 Size = new Size(20, 20),
                 Location = new Point(width - 25, 4),
@@ -778,8 +779,8 @@ namespace RBX_Alt_Manager.Controls
 
             // Menu do botão "+" (criado junto com o botão para garantir ciclo de vida correto)
             var addAccountMenu = new ContextMenuStrip();
-            addAccountMenu.BackColor = Color.FromArgb(45, 45, 45);
-            addAccountMenu.ForeColor = Color.White;
+            addAccountMenu.BackColor = ThemeEditor.ItemBackground;
+            addAccountMenu.ForeColor = ThemeEditor.FormsForeground;
             addAccountMenu.Renderer = new DarkMenuRenderer();
 
             var autoItem = new ToolStripMenuItem("🔄 Adicionar Automático");
@@ -836,8 +837,8 @@ namespace RBX_Alt_Manager.Controls
 
             // Menu de contexto para o item (editar/arquivar)
             var itemContextMenu = new ContextMenuStrip();
-            itemContextMenu.BackColor = Color.FromArgb(45, 45, 45);
-            itemContextMenu.ForeColor = Color.White;
+            itemContextMenu.BackColor = ThemeEditor.ItemBackground;
+            itemContextMenu.ForeColor = ThemeEditor.FormsForeground;
             itemContextMenu.Renderer = new DarkMenuRenderer();
 
             var editItemMenuItem = new ToolStripMenuItem("✏️ Editar Nome");
@@ -959,7 +960,7 @@ namespace RBX_Alt_Manager.Controls
             var panel = new Panel
             {
                 Size = new Size(width - 15, 24),
-                BackColor = Color.FromArgb(35, 35, 35),
+                BackColor = ThemeEditor.HeaderBackground,
                 Margin = new Padding(15, 1, 0, 0),
                 Tag = inventory
             };
@@ -983,8 +984,8 @@ namespace RBX_Alt_Manager.Controls
                 Text = inventory.Quantity.ToString("N0", new System.Globalization.CultureInfo("pt-BR")),
                 Name = $"invqty_{inventory.Id}",
                 Font = F7_5B,
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = ThemeEditor.FormsForeground,
+                BackColor = ThemeEditor.HeaderBackground,
                 Location = new Point(width - 115, 4),
                 Size = new Size(75, 16),
                 TextAlign = ContentAlignment.MiddleRight
@@ -1010,8 +1011,8 @@ namespace RBX_Alt_Manager.Controls
 
             // Menu de contexto (click direito)
             var contextMenu = new ContextMenuStrip();
-            contextMenu.BackColor = Color.FromArgb(45, 45, 45);
-            contextMenu.ForeColor = Color.White;
+            contextMenu.BackColor = ThemeEditor.ItemBackground;
+            contextMenu.ForeColor = ThemeEditor.FormsForeground;
             contextMenu.Renderer = new DarkMenuRenderer();
 
             var moveToEmptyItem = new ToolStripMenuItem("📤 Mover para Contas Vazias");
@@ -1453,14 +1454,14 @@ namespace RBX_Alt_Manager.Controls
                 inputForm.FormBorderStyle = FormBorderStyle.FixedDialog;
                 inputForm.MaximizeBox = false;
                 inputForm.MinimizeBox = false;
-                inputForm.BackColor = Color.FromArgb(45, 45, 45);
+                inputForm.BackColor = ThemeEditor.FormsBackground;
 
                 Label promptLabel = new Label
                 {
                     Text = prompt,
                     Location = new Point(10, 15),
                     Size = new Size(310, 20),
-                    ForeColor = Color.White,
+                    ForeColor = ThemeEditor.FormsForeground,
                     Font = F9
                 };
 
@@ -1470,8 +1471,8 @@ namespace RBX_Alt_Manager.Controls
                     Location = new Point(10, 40),
                     Size = new Size(310, 25),
                     Font = F9,
-                    BackColor = Color.FromArgb(60, 60, 60),
-                    ForeColor = Color.White,
+                    BackColor = ThemeEditor.InputBackground,
+                    ForeColor = ThemeEditor.TextBoxesForeground,
                     BorderStyle = BorderStyle.FixedSingle
                 };
 
@@ -1495,8 +1496,8 @@ namespace RBX_Alt_Manager.Controls
                     Size = new Size(75, 28),
                     DialogResult = DialogResult.Cancel,
                     FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.FromArgb(80, 80, 80),
-                    ForeColor = Color.White,
+                    BackColor = ThemeEditor.ButtonsBackground,
+                    ForeColor = ThemeEditor.ButtonsForeground,
                     Font = F9
                 };
                 cancelButton.FlatAppearance.BorderSize = 0;
@@ -1705,11 +1706,11 @@ namespace RBX_Alt_Manager.Controls
         private Panel CreateEmptyAccountsPanel()
         {
             int width = _contentPanel.Width - 25;
-            
+
             var panel = new Panel
             {
                 Size = new Size(width, 32),
-                BackColor = Color.FromArgb(139, 69, 19), // Marrom/laranja escuro
+                BackColor = Color.FromArgb(139, 69, 19), // Semantic: brown/orange
                 Margin = new Padding(0, 2, 0, 2),
                 Cursor = Cursors.Hand
             };
@@ -1718,7 +1719,7 @@ namespace RBX_Alt_Manager.Controls
             {
                 Text = "CONTAS VAZIAS",
                 Font = F9B,
-                ForeColor = Color.White,
+                ForeColor = ThemeEditor.FormsForeground,
                 Location = new Point(8, 7),
                 Size = new Size(width - 20, 20),
                 AutoEllipsis = true,
@@ -1741,11 +1742,11 @@ namespace RBX_Alt_Manager.Controls
         private Panel CreateEmptyAccountsGameStylePanel()
         {
             int width = _contentPanel.Width - 25;
-            
+
             var panel = new Panel
             {
                 Size = new Size(width, 32),
-                BackColor = Color.FromArgb(50, 50, 50), // Mesmo fundo dos jogos
+                BackColor = ThemeEditor.PanelBackground,
                 Margin = new Padding(0, 2, 0, 2),
                 Cursor = Cursors.Hand
             };
@@ -1754,7 +1755,7 @@ namespace RBX_Alt_Manager.Controls
             {
                 Text = "CONTAS VAZIAS",
                 Font = F9B,
-                ForeColor = Color.FromArgb(205, 133, 63), // Laranja/marrom (Peru color)
+                ForeColor = Color.FromArgb(205, 133, 63), // Semantic: Peru color accent
                 Location = new Point(8, 7),
                 Size = new Size(width - 40, 20),
                 AutoEllipsis = true,
@@ -1766,7 +1767,7 @@ namespace RBX_Alt_Manager.Controls
             {
                 Text = "☆",
                 Font = F12,
-                ForeColor = Color.FromArgb(60, 60, 60), // Quase invisível
+                ForeColor = ThemeEditor.ButtonsBackground,
                 Location = new Point(width - 30, 4),
                 Size = new Size(25, 25)
             };
@@ -1881,11 +1882,11 @@ namespace RBX_Alt_Manager.Controls
         private Panel CreateEmptyAccountsGamePanel(SupabaseGame game)
         {
             int width = _contentPanel.Width - 25;
-            
+
             var panel = new Panel
             {
                 Size = new Size(width, 32),
-                BackColor = Color.FromArgb(50, 50, 50),
+                BackColor = ThemeEditor.PanelBackground,
                 Margin = new Padding(0, 2, 0, 2),
                 Cursor = Cursors.Hand,
                 Tag = game
@@ -2096,11 +2097,13 @@ namespace RBX_Alt_Manager.Controls
         private Panel CreateEmptyAccountPanel(SupabaseAccount account)
         {
             int width = _contentPanel.Width - 25;
-            
+
+            var emptyBg = Color.FromArgb(55, 45, 35); // Semantic: brown tint for empty accounts
+            var emptyHover = Color.FromArgb(70, 55, 40);
             var panel = new Panel
             {
                 Size = new Size(width, 24),
-                BackColor = Color.FromArgb(55, 45, 35),
+                BackColor = emptyBg,
                 Margin = new Padding(10, 1, 0, 1),
                 Cursor = Cursors.Hand,
                 Tag = account
@@ -2110,7 +2113,7 @@ namespace RBX_Alt_Manager.Controls
             {
                 Text = account.Username,
                 Font = F8,
-                ForeColor = Color.LightGray,
+                ForeColor = ThemeEditor.FormsForeground,
                 Location = new Point(8, 4),
                 Size = new Size(width - 20, 16),
                 AutoEllipsis = true,
@@ -2126,8 +2129,8 @@ namespace RBX_Alt_Manager.Controls
 
             // Menu de contexto (click direito)
             var contextMenu = new ContextMenuStrip();
-            contextMenu.BackColor = Color.FromArgb(45, 45, 45);
-            contextMenu.ForeColor = Color.White;
+            contextMenu.BackColor = ThemeEditor.ItemBackground;
+            contextMenu.ForeColor = ThemeEditor.FormsForeground;
             contextMenu.Renderer = new DarkMenuRenderer();
 
             var newStockItem = new ToolStripMenuItem("📦 Novo Estoque");
@@ -2143,10 +2146,10 @@ namespace RBX_Alt_Manager.Controls
             usernameLabel.ContextMenuStrip = contextMenu;
 
             // Hover effect
-            panel.MouseEnter += (s, e) => panel.BackColor = Color.FromArgb(70, 55, 40);
-            panel.MouseLeave += (s, e) => panel.BackColor = Color.FromArgb(55, 45, 35);
-            usernameLabel.MouseEnter += (s, e) => panel.BackColor = Color.FromArgb(70, 55, 40);
-            usernameLabel.MouseLeave += (s, e) => panel.BackColor = Color.FromArgb(55, 45, 35);
+            panel.MouseEnter += (s, e) => panel.BackColor = emptyHover;
+            panel.MouseLeave += (s, e) => panel.BackColor = emptyBg;
+            usernameLabel.MouseEnter += (s, e) => panel.BackColor = emptyHover;
+            usernameLabel.MouseLeave += (s, e) => panel.BackColor = emptyBg;
 
             return panel;
         }
@@ -2167,7 +2170,7 @@ namespace RBX_Alt_Manager.Controls
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false,
-                BackColor = Color.FromArgb(40, 40, 40)
+                BackColor = ThemeEditor.FormsBackground
             };
 
             // Label conta
@@ -2175,7 +2178,7 @@ namespace RBX_Alt_Manager.Controls
             {
                 Text = $"Conta: {account.Username}",
                 Font = F9B,
-                ForeColor = Color.White,
+                ForeColor = ThemeEditor.FormsForeground,
                 Location = new Point(15, 15),
                 AutoSize = true
             };
@@ -2184,7 +2187,7 @@ namespace RBX_Alt_Manager.Controls
             var itemLabel = new Label
             {
                 Text = "Item:",
-                ForeColor = Color.LightGray,
+                ForeColor = ThemeEditor.FormsForeground,
                 Location = new Point(15, 45),
                 AutoSize = true
             };
@@ -2195,8 +2198,8 @@ namespace RBX_Alt_Manager.Controls
                 Location = new Point(15, 65),
                 Size = new Size(270, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = Color.FromArgb(50, 50, 50),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.TextBoxesBackground,
+                ForeColor = ThemeEditor.TextBoxesForeground,
                 FlatStyle = FlatStyle.Flat
             };
 
@@ -2207,7 +2210,7 @@ namespace RBX_Alt_Manager.Controls
             var qtyLabel = new Label
             {
                 Text = "Quantidade:",
-                ForeColor = Color.LightGray,
+                ForeColor = ThemeEditor.FormsForeground,
                 Location = new Point(15, 95),
                 AutoSize = true
             };
@@ -2217,8 +2220,8 @@ namespace RBX_Alt_Manager.Controls
             {
                 Location = new Point(15, 115),
                 Size = new Size(100, 25),
-                BackColor = Color.FromArgb(50, 50, 50),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.InputBackground,
+                ForeColor = ThemeEditor.TextBoxesForeground,
                 BorderStyle = BorderStyle.FixedSingle,
                 Text = "1"
             };
@@ -2275,8 +2278,8 @@ namespace RBX_Alt_Manager.Controls
                 Text = "Cancelar",
                 Location = new Point(205, 115),
                 Size = new Size(80, 25),
-                BackColor = Color.FromArgb(80, 80, 80),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.ButtonsBackground,
+                ForeColor = ThemeEditor.ButtonsForeground,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
@@ -2475,7 +2478,7 @@ namespace RBX_Alt_Manager.Controls
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false,
-                BackColor = Color.FromArgb(40, 40, 40)
+                BackColor = ThemeEditor.FormsBackground
             };
 
             // Label conta
@@ -2483,7 +2486,7 @@ namespace RBX_Alt_Manager.Controls
             {
                 Text = $"Conta: {inventory.Username}",
                 Font = F9B,
-                ForeColor = Color.White,
+                ForeColor = ThemeEditor.FormsForeground,
                 Location = new Point(15, 15),
                 AutoSize = true
             };
@@ -2501,7 +2504,7 @@ namespace RBX_Alt_Manager.Controls
             var newItemLabel = new Label
             {
                 Text = "Novo Item:",
-                ForeColor = Color.LightGray,
+                ForeColor = ThemeEditor.FormsForeground,
                 Location = new Point(15, 65),
                 AutoSize = true
             };
@@ -2512,8 +2515,8 @@ namespace RBX_Alt_Manager.Controls
                 Location = new Point(15, 85),
                 Size = new Size(270, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = Color.FromArgb(50, 50, 50),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.TextBoxesBackground,
+                ForeColor = ThemeEditor.TextBoxesForeground,
                 FlatStyle = FlatStyle.Flat
             };
 
@@ -2541,20 +2544,20 @@ namespace RBX_Alt_Manager.Controls
                 }
 
                 var newItem = (ComboBoxItem)itemCombo.SelectedItem;
-                
+
                 // Mover para novo item: deletar do antigo e criar no novo
                 var deleteSuccess = await SupabaseManager.Instance.DeleteInventoryAsync(inventory.Id);
                 if (deleteSuccess)
                 {
                     var upsertSuccess = await SupabaseManager.Instance.UpsertInventoryAsync(
                         inventory.Username, newItem.Id, inventory.Quantity);
-                    
+
                     if (upsertSuccess)
                     {
                         OnLogMessage($"🔄 {inventory.Username}: {currentItem.Name} → {newItem.Name}");
                         form.DialogResult = DialogResult.OK;
                         form.Close();
-                        
+
                         // Recarregar itens do jogo
                         if (_selectedGame != null)
                         {
@@ -2581,8 +2584,8 @@ namespace RBX_Alt_Manager.Controls
                 Text = "Cancelar",
                 Location = new Point(205, 120),
                 Size = new Size(80, 25),
-                BackColor = Color.FromArgb(80, 80, 80),
-                ForeColor = Color.White,
+                BackColor = ThemeEditor.ButtonsBackground,
+                ForeColor = ThemeEditor.ButtonsForeground,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
@@ -2628,14 +2631,14 @@ namespace RBX_Alt_Manager.Controls
                 editForm.FormBorderStyle = FormBorderStyle.FixedDialog;
                 editForm.MaximizeBox = false;
                 editForm.MinimizeBox = false;
-                editForm.BackColor = Color.FromArgb(45, 45, 45);
+                editForm.BackColor = ThemeEditor.FormsBackground;
 
                 var nameLabel = new Label
                 {
                     Text = "Nome do jogo:",
                     Location = new Point(10, 15),
                     Size = new Size(330, 18),
-                    ForeColor = Color.White,
+                    ForeColor = ThemeEditor.FormsForeground,
                     Font = F9
                 };
 
@@ -2645,8 +2648,8 @@ namespace RBX_Alt_Manager.Controls
                     Location = new Point(10, 36),
                     Size = new Size(330, 25),
                     Font = F9,
-                    BackColor = Color.FromArgb(60, 60, 60),
-                    ForeColor = Color.White,
+                    BackColor = ThemeEditor.InputBackground,
+                    ForeColor = ThemeEditor.TextBoxesForeground,
                     BorderStyle = BorderStyle.FixedSingle
                 };
 
@@ -2655,7 +2658,7 @@ namespace RBX_Alt_Manager.Controls
                     Text = "Place ID:",
                     Location = new Point(10, 70),
                     Size = new Size(330, 18),
-                    ForeColor = Color.White,
+                    ForeColor = ThemeEditor.FormsForeground,
                     Font = F9
                 };
 
@@ -2665,8 +2668,8 @@ namespace RBX_Alt_Manager.Controls
                     Location = new Point(10, 91),
                     Size = new Size(330, 25),
                     Font = F9,
-                    BackColor = Color.FromArgb(60, 60, 60),
-                    ForeColor = Color.White,
+                    BackColor = ThemeEditor.InputBackground,
+                    ForeColor = ThemeEditor.TextBoxesForeground,
                     BorderStyle = BorderStyle.FixedSingle
                 };
 
@@ -2690,8 +2693,8 @@ namespace RBX_Alt_Manager.Controls
                     Size = new Size(80, 30),
                     DialogResult = DialogResult.Cancel,
                     FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.FromArgb(80, 80, 80),
-                    ForeColor = Color.White,
+                    BackColor = ThemeEditor.ButtonsBackground,
+                    ForeColor = ThemeEditor.ButtonsForeground,
                     Font = F9
                 };
                 cancelBtn.FlatAppearance.BorderSize = 0;
@@ -2919,22 +2922,22 @@ namespace RBX_Alt_Manager.Controls
 
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
         {
-            e.TextColor = Color.White;
+            e.TextColor = ThemeEditor.FormsForeground;
             base.OnRenderItemText(e);
         }
     }
 
     internal class DarkColorTable : ProfessionalColorTable
     {
-        public override Color MenuItemSelected => Color.FromArgb(60, 60, 60);
-        public override Color MenuItemSelectedGradientBegin => Color.FromArgb(60, 60, 60);
-        public override Color MenuItemSelectedGradientEnd => Color.FromArgb(60, 60, 60);
-        public override Color MenuBorder => Color.FromArgb(70, 70, 70);
-        public override Color MenuItemBorder => Color.FromArgb(70, 70, 70);
-        public override Color ImageMarginGradientBegin => Color.FromArgb(45, 45, 45);
-        public override Color ImageMarginGradientMiddle => Color.FromArgb(45, 45, 45);
-        public override Color ImageMarginGradientEnd => Color.FromArgb(45, 45, 45);
-        public override Color ToolStripDropDownBackground => Color.FromArgb(45, 45, 45);
+        public override Color MenuItemSelected => ThemeEditor.ButtonsBackground;
+        public override Color MenuItemSelectedGradientBegin => ThemeEditor.ButtonsBackground;
+        public override Color MenuItemSelectedGradientEnd => ThemeEditor.ButtonsBackground;
+        public override Color MenuBorder => ThemeEditor.TextBoxesBorder;
+        public override Color MenuItemBorder => ThemeEditor.TextBoxesBorder;
+        public override Color ImageMarginGradientBegin => ThemeEditor.ItemBackground;
+        public override Color ImageMarginGradientMiddle => ThemeEditor.ItemBackground;
+        public override Color ImageMarginGradientEnd => ThemeEditor.ItemBackground;
+        public override Color ToolStripDropDownBackground => ThemeEditor.ItemBackground;
     }
 
     /// <summary>
