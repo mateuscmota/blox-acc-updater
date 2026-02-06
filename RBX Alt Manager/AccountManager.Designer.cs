@@ -82,7 +82,6 @@ namespace RBX_Alt_Manager
             this.SaveTooltip = new System.Windows.Forms.ToolTip(this.components);
             this.DefaultEncryptionButton = new System.Windows.Forms.Button();
             this.PasswordEncryptionButton = new System.Windows.Forms.Button();
-            this.JobID = new RBX_Alt_Manager.Classes.BorderedTextBox();
             this.ClearJobIDButton = new System.Windows.Forms.Button();
             this.AccountsView = new BrightIdeasSoftware.ObjectListView();
             this.Username = ((BrightIdeasSoftware.OLVColumn)(new BrightIdeasSoftware.OLVColumn()));
@@ -132,8 +131,6 @@ namespace RBX_Alt_Manager
             this.panel1 = new System.Windows.Forms.Panel();
             this.cfgbtn1 = new System.Windows.Forms.Button();
             this.panel2 = new System.Windows.Forms.Panel();
-            this.OpenBrowser = new RBX_Alt_Manager.Classes.MenuButton();
-            this.PlaceID = new RBX_Alt_Manager.Classes.BorderedTextBox();
             this.panel3 = new System.Windows.Forms.Panel();
             this.label1 = new System.Windows.Forms.Label();
             this.button3 = new System.Windows.Forms.Button();
@@ -151,6 +148,9 @@ namespace RBX_Alt_Manager
             this.label2 = new System.Windows.Forms.Label();
             this.PANELFOTO = new System.Windows.Forms.Panel();
             this.sellRbxBtn = new System.Windows.Forms.Button();
+            this.OpenBrowser = new RBX_Alt_Manager.Classes.MenuButton();
+            this.PlaceID = new RBX_Alt_Manager.Classes.BorderedTextBox();
+            this.JobID = new RBX_Alt_Manager.Classes.BorderedTextBox();
             this.AddAccountsStrip.SuspendLayout();
             this.AccountsStrip.SuspendLayout();
             this.OpenBrowserStrip.SuspendLayout();
@@ -260,33 +260,33 @@ namespace RBX_Alt_Manager
             this.viewHistoryToolStripMenuItem,
             this.removeAccountToolStripMenuItem});
             this.AccountsStrip.Name = "contextMenuStrip1";
-            this.AccountsStrip.Size = new System.Drawing.Size(238, 312);
+            this.AccountsStrip.Size = new System.Drawing.Size(239, 312);
             // 
             // updateRobuxToolStripMenuItem
             // 
             this.updateRobuxToolStripMenuItem.Name = "updateRobuxToolStripMenuItem";
-            this.updateRobuxToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.updateRobuxToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.updateRobuxToolStripMenuItem.Text = "♻️ Atualizar Saldo Robux";
             this.updateRobuxToolStripMenuItem.Click += new System.EventHandler(this.updateRobuxToolStripMenuItem_Click);
             // 
             // removeAllFriendsToolStripMenuItem
             // 
             this.removeAllFriendsToolStripMenuItem.Name = "removeAllFriendsToolStripMenuItem";
-            this.removeAllFriendsToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.removeAllFriendsToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.removeAllFriendsToolStripMenuItem.Text = "💔 Remover Todas as Amizades";
             this.removeAllFriendsToolStripMenuItem.Click += new System.EventHandler(this.removeAllFriendsToolStripMenuItem_Click);
             // 
             // unblockAllUsersToolStripMenuItem
             // 
             this.unblockAllUsersToolStripMenuItem.Name = "unblockAllUsersToolStripMenuItem";
-            this.unblockAllUsersToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.unblockAllUsersToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.unblockAllUsersToolStripMenuItem.Text = "🔓 Desbloquear Todos";
             this.unblockAllUsersToolStripMenuItem.Click += new System.EventHandler(this.unblockAllUsersToolStripMenuItem_Click);
             // 
             // accountUtilitiesToolStripMenuItem
             // 
             this.accountUtilitiesToolStripMenuItem.Name = "accountUtilitiesToolStripMenuItem";
-            this.accountUtilitiesToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.accountUtilitiesToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.accountUtilitiesToolStripMenuItem.Text = "⚙️ Utilidades da Conta";
             this.accountUtilitiesToolStripMenuItem.Click += new System.EventHandler(this.accountUtilitiesToolStripMenuItem_Click);
             // 
@@ -298,7 +298,7 @@ namespace RBX_Alt_Manager
             this.copyUserPassComboToolStripMenuItem,
             this.copyUserIdToolStripMenuItem});
             this.copyToolStripMenuItem.Name = "copyToolStripMenuItem";
-            this.copyToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.copyToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.copyToolStripMenuItem.Text = "📋 Copiar";
             // 
             // copyUsernameToolStripMenuItem
@@ -332,63 +332,63 @@ namespace RBX_Alt_Manager
             // sortAlphabeticallyToolStripMenuItem
             // 
             this.sortAlphabeticallyToolStripMenuItem.Name = "sortAlphabeticallyToolStripMenuItem";
-            this.sortAlphabeticallyToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.sortAlphabeticallyToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.sortAlphabeticallyToolStripMenuItem.Text = "📑 Ordenar Alfabeticamente";
             this.sortAlphabeticallyToolStripMenuItem.Click += new System.EventHandler(this.sortAlphabeticallyToolStripMenuItem_Click);
             // 
             // moveGroupUpToolStripMenuItem
             // 
             this.moveGroupUpToolStripMenuItem.Name = "moveGroupUpToolStripMenuItem";
-            this.moveGroupUpToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.moveGroupUpToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.moveGroupUpToolStripMenuItem.Text = "🗂️ Grupos";
             this.moveGroupUpToolStripMenuItem.DropDownOpening += new System.EventHandler(this.moveGroupUpToolStripMenuItem_DropDownOpening);
             // 
             // copySecurityTokenToolStripMenuItem
             // 
             this.copySecurityTokenToolStripMenuItem.Name = "copySecurityTokenToolStripMenuItem";
-            this.copySecurityTokenToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.copySecurityTokenToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.copySecurityTokenToolStripMenuItem.Text = "🍪 Copiar Cookie";
             this.copySecurityTokenToolStripMenuItem.Click += new System.EventHandler(this.copySecurityTokenToolStripMenuItem_Click);
             // 
             // bypassCookieToolStripMenuItem
             // 
             this.bypassCookieToolStripMenuItem.Name = "bypassCookieToolStripMenuItem";
-            this.bypassCookieToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.bypassCookieToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.bypassCookieToolStripMenuItem.Text = "🔄 Bypass Cookie (Auto)";
             this.bypassCookieToolStripMenuItem.Click += new System.EventHandler(this.bypassCookieToolStripMenuItem_Click);
             // 
             // setDescriptionToolStripMenuItem
             // 
             this.setDescriptionToolStripMenuItem.Name = "setDescriptionToolStripMenuItem";
-            this.setDescriptionToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.setDescriptionToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.setDescriptionToolStripMenuItem.Text = "📝 Definir Descrição";
             this.setDescriptionToolStripMenuItem.Click += new System.EventHandler(this.SetDescription_Click);
             // 
             // setHotkeyToolStripMenuItem
             // 
             this.setHotkeyToolStripMenuItem.Name = "setHotkeyToolStripMenuItem";
-            this.setHotkeyToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.setHotkeyToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.setHotkeyToolStripMenuItem.Text = "⌨️ Definir Hotkey";
             this.setHotkeyToolStripMenuItem.Click += new System.EventHandler(this.setHotkeyToolStripMenuItem_Click);
             // 
             // syncToSupabaseToolStripMenuItem
             // 
             this.syncToSupabaseToolStripMenuItem.Name = "syncToSupabaseToolStripMenuItem";
-            this.syncToSupabaseToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.syncToSupabaseToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.syncToSupabaseToolStripMenuItem.Text = "☁️ Enviar para Nuvem";
             this.syncToSupabaseToolStripMenuItem.Click += new System.EventHandler(this.syncToSupabaseToolStripMenuItem_Click);
             // 
             // viewHistoryToolStripMenuItem
             // 
             this.viewHistoryToolStripMenuItem.Name = "viewHistoryToolStripMenuItem";
-            this.viewHistoryToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.viewHistoryToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.viewHistoryToolStripMenuItem.Text = "📜 Ver histórico da conta";
             this.viewHistoryToolStripMenuItem.Click += new System.EventHandler(this.viewHistoryToolStripMenuItem_Click);
             // 
             // removeAccountToolStripMenuItem
             // 
             this.removeAccountToolStripMenuItem.Name = "removeAccountToolStripMenuItem";
-            this.removeAccountToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
+            this.removeAccountToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.removeAccountToolStripMenuItem.Text = "🗑️ Remover Conta";
             this.removeAccountToolStripMenuItem.Click += new System.EventHandler(this.removeAccountToolStripMenuItem_Click);
             // 
@@ -584,19 +584,6 @@ namespace RBX_Alt_Manager
         "tored securely");
             this.PasswordEncryptionButton.UseVisualStyleBackColor = true;
             this.PasswordEncryptionButton.Click += new System.EventHandler(this.PasswordEncryptionButton_Click);
-            // 
-            // JobID
-            // 
-            this.JobID.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.JobID.BackColor = System.Drawing.SystemColors.InactiveBorder;
-            this.JobID.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(122)))), ((int)(((byte)(122)))), ((int)(((byte)(122)))));
-            this.JobID.Location = new System.Drawing.Point(147, 666);
-            this.JobID.Name = "JobID";
-            this.JobID.Size = new System.Drawing.Size(117, 20);
-            this.JobID.TabIndex = 2;
-            this.SaveTooltip.SetToolTip(this.JobID, "Job ID is a unique ID assigned to every roblox server.\r\nYou may also put a Privat" +
-        "e Server link in this box to join it.");
-            this.JobID.Click += new System.EventHandler(this.JobID_Click);
             // 
             // ClearJobIDButton
             // 
@@ -1208,30 +1195,6 @@ namespace RBX_Alt_Manager
             this.panel2.TabIndex = 1502;
             this.panel2.Paint += new System.Windows.Forms.PaintEventHandler(this.panel2_Paint);
             // 
-            // OpenBrowser
-            // 
-            this.OpenBrowser.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.OpenBrowser.Location = new System.Drawing.Point(147, 690);
-            this.OpenBrowser.Menu = this.OpenBrowserStrip;
-            this.OpenBrowser.Name = "OpenBrowser";
-            this.OpenBrowser.Size = new System.Drawing.Size(146, 25);
-            this.OpenBrowser.TabIndex = 18;
-            this.OpenBrowser.Text = "Abrir Navegador";
-            this.OpenBrowser.UseVisualStyleBackColor = true;
-            this.OpenBrowser.Click += new System.EventHandler(this.OpenBrowser_Click);
-            // 
-            // PlaceID
-            // 
-            this.PlaceID.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.PlaceID.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(122)))), ((int)(((byte)(122)))), ((int)(((byte)(122)))));
-            this.PlaceID.Location = new System.Drawing.Point(2, 666);
-            this.PlaceID.Name = "PlaceID";
-            this.PlaceID.Size = new System.Drawing.Size(139, 20);
-            this.PlaceID.TabIndex = 1;
-            this.PlaceID.Text = "5315046213";
-            this.PlaceID.Click += new System.EventHandler(this.PlaceID_Click);
-            this.PlaceID.TextChanged += new System.EventHandler(this.PlaceID_TextChanged);
-            // 
             // panel3
             // 
             this.panel3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
@@ -1407,6 +1370,43 @@ namespace RBX_Alt_Manager
             this.sellRbxBtn.UseVisualStyleBackColor = false;
             this.sellRbxBtn.Click += new System.EventHandler(this.sellRbxBtn_Click);
             // 
+            // OpenBrowser
+            // 
+            this.OpenBrowser.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.OpenBrowser.Location = new System.Drawing.Point(147, 690);
+            this.OpenBrowser.Menu = this.OpenBrowserStrip;
+            this.OpenBrowser.Name = "OpenBrowser";
+            this.OpenBrowser.Size = new System.Drawing.Size(146, 25);
+            this.OpenBrowser.TabIndex = 18;
+            this.OpenBrowser.Text = "Abrir Navegador";
+            this.OpenBrowser.UseVisualStyleBackColor = true;
+            this.OpenBrowser.Click += new System.EventHandler(this.OpenBrowser_Click);
+            // 
+            // PlaceID
+            // 
+            this.PlaceID.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.PlaceID.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(122)))), ((int)(((byte)(122)))), ((int)(((byte)(122)))));
+            this.PlaceID.Location = new System.Drawing.Point(2, 666);
+            this.PlaceID.Name = "PlaceID";
+            this.PlaceID.Size = new System.Drawing.Size(139, 20);
+            this.PlaceID.TabIndex = 1;
+            this.PlaceID.Text = "5315046213";
+            this.PlaceID.Click += new System.EventHandler(this.PlaceID_Click);
+            this.PlaceID.TextChanged += new System.EventHandler(this.PlaceID_TextChanged);
+            // 
+            // JobID
+            // 
+            this.JobID.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.JobID.BackColor = System.Drawing.SystemColors.InactiveBorder;
+            this.JobID.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(122)))), ((int)(((byte)(122)))), ((int)(((byte)(122)))));
+            this.JobID.Location = new System.Drawing.Point(147, 666);
+            this.JobID.Name = "JobID";
+            this.JobID.Size = new System.Drawing.Size(117, 20);
+            this.JobID.TabIndex = 2;
+            this.SaveTooltip.SetToolTip(this.JobID, "Job ID is a unique ID assigned to every roblox server.\r\nYou may also put a Privat" +
+        "e Server link in this box to join it.");
+            this.JobID.Click += new System.EventHandler(this.JobID_Click);
+            // 
             // AccountManager
             // 
             this.AllowDrop = true;
@@ -1426,6 +1426,7 @@ namespace RBX_Alt_Manager
             this.Controls.Add(this.DebugLogTextBox);
             this.Controls.Add(this.PrivateServersPanel);
             this.Controls.Add(this.PasswordPanel);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.HelpButton = true;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
