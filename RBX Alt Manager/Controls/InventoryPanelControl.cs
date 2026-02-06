@@ -201,6 +201,7 @@ namespace RBX_Alt_Manager.Controls
                         if (child is Label lbl && lbl.Name == $"invqty_{inventoryId}")
                         {
                             lbl.Text = newQuantity.ToString("N0", new System.Globalization.CultureInfo("pt-BR"));
+                            lbl.ForeColor = newQuantity > 0 ? ThemeEditor.FormsForeground : Color.FromArgb(230, 100, 100);
                         }
                         else if (child is Label userLbl && userLbl.Name == $"invuser_{inventoryId}")
                         {
@@ -1022,7 +1023,7 @@ namespace RBX_Alt_Manager.Controls
                 Text = inventory.Quantity.ToString("N0", new System.Globalization.CultureInfo("pt-BR")),
                 Name = $"invqty_{inventory.Id}",
                 Font = F7_5B,
-                ForeColor = ThemeEditor.FormsForeground,
+                ForeColor = hasStock ? ThemeEditor.FormsForeground : Color.FromArgb(230, 100, 100),
                 BackColor = ThemeEditor.HeaderBackground,
                 Location = new Point(width - 115, 4),
                 Size = new Size(75, 16),
