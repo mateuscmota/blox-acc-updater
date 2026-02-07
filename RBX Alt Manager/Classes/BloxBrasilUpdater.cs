@@ -179,12 +179,15 @@ echo Preservando dados do usuário...
 if exist ""{currentDir}\AccountData.json"" copy /y ""{currentDir}\AccountData.json"" ""{extractPath}\AccountData.json.bak"" >nul 2>&1
 if exist ""{currentDir}\RAMSettings.ini"" copy /y ""{currentDir}\RAMSettings.ini"" ""{extractPath}\RAMSettings.ini.bak"" >nul 2>&1
 if exist ""{currentDir}\RAMTheme.ini"" copy /y ""{currentDir}\RAMTheme.ini"" ""{extractPath}\RAMTheme.ini.bak"" >nul 2>&1
+if exist ""{currentDir}\PrivateServers.json"" copy /y ""{currentDir}\PrivateServers.json"" ""{extractPath}\PrivateServers.json.bak"" >nul 2>&1
 if exist ""{currentDir}\themes"" xcopy /s /e /y /i ""{currentDir}\themes"" ""{extractPath}\themes.bak\"" >nul 2>&1
+if exist ""{currentDir}\wallpapers"" xcopy /s /e /y /i ""{currentDir}\wallpapers"" ""{extractPath}\wallpapers.bak\"" >nul 2>&1
 
 echo Removendo dados de desenvolvimento do pacote...
 if exist ""{extractPath}\AccountData.json"" del ""{extractPath}\AccountData.json"" >nul 2>&1
 if exist ""{extractPath}\RAMSettings.ini"" del ""{extractPath}\RAMSettings.ini"" >nul 2>&1
 if exist ""{extractPath}\RAMTheme.ini"" del ""{extractPath}\RAMTheme.ini"" >nul 2>&1
+if exist ""{extractPath}\PrivateServers.json"" del ""{extractPath}\PrivateServers.json"" >nul 2>&1
 
 echo Instalando atualização...
 xcopy /s /e /y /i ""{extractPath}\*"" ""{currentDir}\"" >nul 2>&1
@@ -201,6 +204,12 @@ if exist ""{extractPath}\RAMTheme.ini.bak"" (
 )
 if exist ""{extractPath}\themes.bak"" (
     xcopy /s /e /y /i ""{extractPath}\themes.bak\*"" ""{currentDir}\themes\"" >nul 2>&1
+)
+if exist ""{extractPath}\PrivateServers.json.bak"" (
+    copy /y ""{extractPath}\PrivateServers.json.bak"" ""{currentDir}\PrivateServers.json"" >nul 2>&1
+)
+if exist ""{extractPath}\wallpapers.bak"" (
+    xcopy /s /e /y /i ""{extractPath}\wallpapers.bak\*"" ""{currentDir}\wallpapers\"" >nul 2>&1
 )
 
 echo Limpando arquivos temporários...
