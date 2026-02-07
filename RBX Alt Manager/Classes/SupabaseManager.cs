@@ -717,7 +717,7 @@ namespace RBX_Alt_Manager.Classes
         {
             try
             {
-                var data = new { name = name };
+                var data = new { name = name, updated_at = DateTime.UtcNow };
                 var json = JsonConvert.SerializeObject(data);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -747,7 +747,7 @@ namespace RBX_Alt_Manager.Classes
         {
             try
             {
-                var data = new { archived = archived };
+                var data = new { archived = archived, updated_at = DateTime.UtcNow };
                 var json = JsonConvert.SerializeObject(data);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -773,6 +773,35 @@ namespace RBX_Alt_Manager.Classes
                 Console.WriteLine($"Erro ao arquivar item: {ex.Message}");
             }
             return false;
+        }
+
+        /// <summary>
+        /// Busca game_items atualizados após uma data (para sync em tempo real)
+        /// </summary>
+        public async Task<List<SupabaseGameItem>> GetGameItemsUpdatedSinceAsync(DateTime since)
+        {
+            try
+            {
+                string sinceStr = since.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+                var response = await _client.GetAsync(
+                    $"{SUPABASE_URL}/rest/v1/game_items" +
+                    $"?updated_at=gt.{Uri.EscapeDataString(sinceStr)}" +
+                    $"&select=id,game_id,name,archived,updated_at" +
+                    $"&order=updated_at.asc" +
+                    $"&limit=200");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    return JsonConvert.DeserializeObject<List<SupabaseGameItem>>(json) ?? new List<SupabaseGameItem>();
+                }
+            }
+            catch (Exception ex)
+            {
+                if (AccountManager.DebugModeAtivo)
+                    Console.WriteLine($"[GameItemsSync] Erro poll: {ex.Message}");
+            }
+            return new List<SupabaseGameItem>();
         }
 
         #endregion
@@ -984,14 +1013,32 @@ namespace RBX_Alt_Manager.Classes
         }
 
         /// <summary>
-        /// Remove uma conta de um item
+        /// Remove uma conta de um item (soft-delete: quantity=-1 para sync, depois DELETE real)
         /// </summary>
         public async Task<bool> DeleteInventoryAsync(int inventoryId)
         {
             try
             {
-                var response = await _client.DeleteAsync($"{SUPABASE_URL}/rest/v1/inventory?id=eq.{inventoryId}");
-                return response.IsSuccessStatusCode;
+                // Soft-delete: quantity=-1 para que o polling detecte a remoção
+                var data = new { quantity = -1, updated_at = DateTime.UtcNow };
+                var json = JsonConvert.SerializeObject(data);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var patchRequest = CreatePatchRequest($"{SUPABASE_URL}/rest/v1/inventory?id=eq.{inventoryId}", content);
+                var patchResponse = await _client.SendAsync(patchRequest);
+
+                if (!patchResponse.IsSuccessStatusCode) return false;
+
+                InventorySyncService.Instance.MarkLocalUpdate(inventoryId);
+
+                // DELETE real após 6s (polling é 3s, garante que outros clientes detectem)
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(6000);
+                    try { await _client.DeleteAsync($"{SUPABASE_URL}/rest/v1/inventory?id=eq.{inventoryId}"); }
+                    catch { }
+                });
+
+                return true;
             }
             catch (Exception ex)
             {
@@ -1001,15 +1048,41 @@ namespace RBX_Alt_Manager.Classes
         }
 
         /// <summary>
-        /// Remove uma conta de um item pelo username e item_id
+        /// Remove uma conta de um item pelo username e item_id (soft-delete + DELETE real)
         /// </summary>
         public async Task<bool> DeleteInventoryByUsernameAsync(string username, int itemId)
         {
             try
             {
-                var response = await _client.DeleteAsync(
-                    $"{SUPABASE_URL}/rest/v1/inventory?username=eq.{Uri.EscapeDataString(username)}&item_id=eq.{itemId}");
-                return response.IsSuccessStatusCode;
+                // Soft-delete: quantity=-1
+                var data = new { quantity = -1, updated_at = DateTime.UtcNow };
+                var json = JsonConvert.SerializeObject(data);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var url = $"{SUPABASE_URL}/rest/v1/inventory?username=eq.{Uri.EscapeDataString(username)}&item_id=eq.{itemId}";
+                var patchRequest = CreatePatchRequest(url, content);
+                patchRequest.Headers.Add("Prefer", "return=representation");
+                var patchResponse = await _client.SendAsync(patchRequest);
+
+                if (!patchResponse.IsSuccessStatusCode) return false;
+
+                try
+                {
+                    var responseJson = await patchResponse.Content.ReadAsStringAsync();
+                    var entries = JsonConvert.DeserializeObject<List<SupabaseInventoryEntry>>(responseJson);
+                    if (entries?.Count > 0)
+                        InventorySyncService.Instance.MarkLocalUpdate(entries[0].Id);
+                }
+                catch { }
+
+                // DELETE real após 6s
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(6000);
+                    try { await _client.DeleteAsync(url); }
+                    catch { }
+                });
+
+                return true;
             }
             catch (Exception ex)
             {
@@ -1596,6 +1669,9 @@ namespace RBX_Alt_Manager.Classes
 
         [JsonProperty("created_at")]
         public DateTime CreatedAt { get; set; }
+
+        [JsonProperty("updated_at")]
+        public DateTime UpdatedAt { get; set; }
     }
 
     public class SupabaseInventoryEntry

@@ -130,6 +130,63 @@ namespace RBX_Alt_Manager.Controls
         }
 
         /// <summary>
+        /// Remove um inventory entry da UI e cache (soft-delete detectado pelo polling)
+        /// </summary>
+        public void RemoveInventoryEntry(int inventoryId, int itemId)
+        {
+            // Ignorar durante edição local
+            if ((DateTime.UtcNow - _lastUserActionTime).TotalSeconds < USER_ACTION_COOLDOWN_SECONDS)
+                return;
+
+            // Remover do cache local
+            bool removed = false;
+            foreach (var kvp in _inventoryByItem)
+            {
+                var entry = kvp.Value.FirstOrDefault(e => e.Id == inventoryId);
+                if (entry != null)
+                {
+                    kvp.Value.Remove(entry);
+                    itemId = kvp.Key;
+                    removed = true;
+                    break;
+                }
+            }
+
+            if (!removed) return;
+
+            // Rebuild da UI
+            if (InvokeRequired)
+                Invoke(new Action(RefreshItemsPanel));
+            else
+                RefreshItemsPanel();
+        }
+
+        /// <summary>
+        /// Atualiza game_items na UI quando detectado pelo polling (nome, archived)
+        /// </summary>
+        public void OnGameItemsChanged(System.Collections.Generic.List<SupabaseGameItem> changedItems)
+        {
+            if (_selectedGame == null) return;
+
+            bool needsRefresh = false;
+            foreach (var item in changedItems)
+            {
+                // Se é um item do jogo atualmente selecionado, precisa atualizar
+                if (item.GameId == _selectedGame.Id)
+                    needsRefresh = true;
+            }
+
+            if (needsRefresh)
+            {
+                // Invalidar cache e recarregar
+                if (InvokeRequired)
+                    Invoke(new Action(() => _ = LoadGameItemsAsync(_selectedGame)));
+                else
+                    _ = LoadGameItemsAsync(_selectedGame);
+            }
+        }
+
+        /// <summary>
         /// Recarrega o inventário se o jogo e item atuais correspondem aos parâmetros
         /// Chamado quando uma conta é sincronizada para a nuvem
         /// </summary>
@@ -2897,9 +2954,10 @@ namespace RBX_Alt_Manager.Controls
         private async Task UpdateItemNameAsync(SupabaseGameItem item, string newName)
         {
             var success = await SupabaseManager.Instance.UpdateGameItemNameAsync(item.Id, newName);
-            
+
             if (success)
             {
+                InventorySyncService.Instance.MarkLocalItemUpdate(item.Id);
                 OnLogMessage($"✏️ Item renomeado: {item.Name} → {newName}");
                 item.Name = newName;
                 
@@ -2946,9 +3004,10 @@ namespace RBX_Alt_Manager.Controls
         private async Task ArchiveItemAsync(SupabaseGameItem item)
         {
             var success = await SupabaseManager.Instance.ArchiveGameItemAsync(item.Id, true);
-            
+
             if (success)
             {
+                InventorySyncService.Instance.MarkLocalItemUpdate(item.Id);
                 OnLogMessage($"📁 Item arquivado: {item.Name}");
                 
                 // Remover da lista local

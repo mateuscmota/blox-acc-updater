@@ -3125,6 +3125,8 @@ namespace RBX_Alt_Manager
             if (DebugModeAtivo)
                 AddLog($"🔄 [Sync] {changedEntries.Count} alterações recebidas de outro usuário");
 
+            bool needsEstoqueReload = false;
+
             // 1. Atualizar EstoquePanel (por conta)
             if (!string.IsNullOrEmpty(_lastLoadedUsernameSupabase))
             {
@@ -3133,7 +3135,15 @@ namespace RBX_Alt_Manager
                     if (!entry.Username.Equals(_lastLoadedUsernameSupabase, StringComparison.OrdinalIgnoreCase))
                         continue;
 
+                    // quantity < 0 → item removido (soft-delete), recarregar estoque
+                    if (entry.Quantity < 0)
+                    {
+                        needsEstoqueReload = true;
+                        continue;
+                    }
+
                     // Buscar TextBox no EstoqueItemsPanel pelo nome
+                    bool found = false;
                     foreach (Control panel in EstoqueItemsPanel.Controls)
                     {
                         if (panel is Panel p)
@@ -3143,18 +3153,52 @@ namespace RBX_Alt_Manager
                                 if (child is TextBox tb && tb.Name == $"estoqueqty_{entry.Id}")
                                 {
                                     tb.Text = FormatNumberWithThousands(entry.Quantity);
+                                    found = true;
                                     break;
                                 }
                             }
                         }
+                        if (found) break;
                     }
+
+                    // Item novo que não existia no estoque → recarregar
+                    if (!found) needsEstoqueReload = true;
                 }
             }
 
             // 2. Encaminhar para InventoryPanelControl
             foreach (var entry in changedEntries)
             {
-                _inventoryPanel?.UpdateInventoryQuantity(entry.Id, entry.Quantity);
+                if (entry.Quantity < 0)
+                    _inventoryPanel?.RemoveInventoryEntry(entry.Id, entry.ItemId);
+                else
+                    _inventoryPanel?.UpdateInventoryQuantity(entry.Id, entry.Quantity);
+            }
+
+            // 3. Recarregar estoque se houve adições ou remoções
+            if (needsEstoqueReload && !string.IsNullOrEmpty(_lastLoadedUsernameSupabase) && SelectedAccount != null)
+            {
+                _lastLoadedUsernameSupabase = "";
+                _ = LoadProductsFromSupabaseAsync(SelectedAccount.Username);
+            }
+        }
+
+        private void OnGameItemsChangedFromSync(object sender, System.Collections.Generic.List<SupabaseGameItem> changedItems)
+        {
+            if (DebugModeAtivo)
+                AddLog($"🔄 [Sync] {changedItems.Count} alterações de items recebidas");
+
+            // Invalidar cache para próximas leituras
+            Classes.SupabaseManager.Instance.InvalidateItemsCache();
+
+            // Encaminhar para InventoryPanelControl
+            _inventoryPanel?.OnGameItemsChanged(changedItems);
+
+            // Recarregar estoque
+            if (!string.IsNullOrEmpty(_lastLoadedUsernameSupabase) && SelectedAccount != null)
+            {
+                _lastLoadedUsernameSupabase = "";
+                _ = LoadProductsFromSupabaseAsync(SelectedAccount.Username);
             }
         }
 
@@ -3277,6 +3321,7 @@ namespace RBX_Alt_Manager
             // Iniciar serviço de sincronização de inventário
             Classes.InventorySyncService.Instance.Start();
             Classes.InventorySyncService.Instance.InventoryEntriesChanged += OnInventoryChangedFromSync;
+            Classes.InventorySyncService.Instance.GameItemsChanged += OnGameItemsChangedFromSync;
 
             // Iniciar serviço de sincronização de 2FA
             Classes.TwofaSyncService.Instance.Start();

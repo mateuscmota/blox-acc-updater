@@ -262,7 +262,7 @@ namespace RBX_Alt_Manager
             this.viewHistoryToolStripMenuItem,
             this.removeAccountToolStripMenuItem});
             this.AccountsStrip.Name = "contextMenuStrip1";
-            this.AccountsStrip.Size = new System.Drawing.Size(238, 312);
+            this.AccountsStrip.Size = new System.Drawing.Size(238, 334);
             // 
             // updateRobuxToolStripMenuItem
             // 
@@ -365,14 +365,14 @@ namespace RBX_Alt_Manager
             this.setDescriptionToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
             this.setDescriptionToolStripMenuItem.Text = "📝 Definir Descrição";
             this.setDescriptionToolStripMenuItem.Click += new System.EventHandler(this.SetDescription_Click);
-            //
+            // 
             // set2FASecretToolStripMenuItem
-            //
+            // 
             this.set2FASecretToolStripMenuItem.Name = "set2FASecretToolStripMenuItem";
             this.set2FASecretToolStripMenuItem.Size = new System.Drawing.Size(237, 22);
             this.set2FASecretToolStripMenuItem.Text = "🔑 Adicionar 2FA Secret";
             this.set2FASecretToolStripMenuItem.Click += new System.EventHandler(this.set2FASecretToolStripMenuItem_Click);
-            //
+            // 
             // setHotkeyToolStripMenuItem
             // 
             this.setHotkeyToolStripMenuItem.Name = "setHotkeyToolStripMenuItem";
