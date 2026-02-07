@@ -35,6 +35,23 @@ namespace RBX_Alt_Manager.Forms
         public static bool LightImages = true;
         // public static bool UseNormalTabControls = false;
 
+        // Wallpaper
+        public static string WallpaperPath = "";
+        public static int WallpaperOpacity = 40; // 0=sem overlay, 100=overlay total esconde imagem
+        public static int PanelTransparency = 100; // 0=painéis opacos, 100=painéis totalmente transparentes
+
+        /// <summary>
+        /// Retorna a cor do painel considerando wallpaper e transparência.
+        /// WinForms não suporta alpha parcial — usa apenas Transparent ou opaco.
+        /// O slider controla o limiar: >0 = transparente, 0 = opaco.
+        /// </summary>
+        public static Color GetPanelColor(Color baseColor)
+        {
+            if (string.IsNullOrEmpty(WallpaperPath)) return baseColor;
+            if (PanelTransparency > 0) return Color.Transparent;
+            return baseColor;
+        }
+
         // Cores derivadas para painéis dinâmicos (inventário, amigos, estoque, diálogos)
         public static Color PanelBackground => DeriveColor(FormsBackground, 0.06f);
         public static Color HeaderBackground => DeriveColor(FormsBackground, -0.03f);
@@ -233,6 +250,10 @@ namespace RBX_Alt_Manager.Forms
 
             if (!Theme.Exists("LightImages")) Theme.Set("LightImages", FormsBackground.GetBrightness() < 0.5 ? "true" : "false");
             if (bool.TryParse(Theme.Get("LightImages"), out bool bLightImages)) LightImages = bLightImages;
+
+            if (Theme.Exists("WallpaperPath")) WallpaperPath = Theme.Get("WallpaperPath");
+            if (Theme.Exists("WallpaperOpacity") && int.TryParse(Theme.Get("WallpaperOpacity"), out int wpOp)) WallpaperOpacity = Math.Max(0, Math.Min(100, wpOp));
+            if (Theme.Exists("PanelTransparency") && int.TryParse(Theme.Get("PanelTransparency"), out int ptVal)) PanelTransparency = Math.Max(0, Math.Min(100, ptVal));
         }
 
         public static void SaveTheme()
@@ -262,6 +283,10 @@ namespace RBX_Alt_Manager.Forms
             Theme.Set("LabelsTransparent", LabelTransparent.ToString());
 
             Theme.Set("LightImages", LightImages.ToString());
+
+            Theme.Set("WallpaperPath", WallpaperPath ?? "");
+            Theme.Set("WallpaperOpacity", WallpaperOpacity.ToString());
+            Theme.Set("PanelTransparency", PanelTransparency.ToString());
 
             ThemeIni.Save("RAMTheme.ini");
         }
@@ -342,6 +367,11 @@ namespace RBX_Alt_Manager.Forms
             // IMAGENS
             y = AddCategoryHeader("IMAGENS", y);
             y = AddCheckboxRow("Ícones claros", () => LightImages, v => LightImages = v, y);
+            y += 8;
+
+            // WALLPAPER
+            y = AddCategoryHeader("WALLPAPER", y);
+            y = AddWallpaperSection(y);
             y += 8;
 
             // CORES DERIVADAS (somente leitura)
@@ -515,6 +545,194 @@ namespace RBX_Alt_Manager.Forms
             });
 
             return y + 26;
+        }
+
+        private Label _wallpaperFileLabel;
+
+        private int AddWallpaperSection(int y)
+        {
+            // Label do arquivo atual
+            _wallpaperFileLabel = new Label
+            {
+                Text = string.IsNullOrEmpty(WallpaperPath) ? "(nenhum)" : WallpaperPath,
+                ForeColor = FormsForeground,
+                AutoSize = false,
+                Size = new Size(300, 20),
+                Location = new Point(25, y),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            pnlMain.Controls.Add(_wallpaperFileLabel);
+            y += 24;
+
+            // Botão Selecionar
+            var btnSelect = new Button
+            {
+                Text = "Selecionar Imagem",
+                ForeColor = ButtonsForeground,
+                BackColor = ButtonsBackground,
+                FlatStyle = FlatStyle.Flat,
+                Size = new Size(140, 28),
+                Location = new Point(25, y),
+                Cursor = Cursors.Hand
+            };
+            btnSelect.FlatAppearance.BorderColor = ButtonsBorder;
+            btnSelect.Click += (s, e) =>
+            {
+                using (var dlg = new OpenFileDialog())
+                {
+                    dlg.Filter = "Imagens e Vídeos|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.mp4;*.webm;*.avi;*.mkv;*.wmv;*.mov|Imagens|*.jpg;*.jpeg;*.png;*.bmp;*.gif|Vídeos|*.mp4;*.webm;*.avi;*.mkv;*.wmv;*.mov|Todos|*.*";
+                    dlg.Title = "Selecionar Wallpaper";
+                    if (dlg.ShowDialog() == DialogResult.OK)
+                    {
+                        var wpDir = Path.Combine(Environment.CurrentDirectory, "wallpapers");
+                        if (!Directory.Exists(wpDir)) Directory.CreateDirectory(wpDir);
+
+                        var fileName = Path.GetFileName(dlg.FileName);
+                        var destPath = Path.Combine(wpDir, fileName);
+
+                        if (!string.Equals(dlg.FileName, destPath, StringComparison.OrdinalIgnoreCase))
+                            File.Copy(dlg.FileName, destPath, true);
+
+                        WallpaperPath = fileName;
+                        _wallpaperFileLabel.Text = fileName;
+                        OnColorChanged();
+                    }
+                }
+            };
+            pnlMain.Controls.Add(btnSelect);
+
+            // Botão Remover
+            var btnRemove = new Button
+            {
+                Text = "Remover",
+                ForeColor = ButtonsForeground,
+                BackColor = ButtonsBackground,
+                FlatStyle = FlatStyle.Flat,
+                Size = new Size(80, 28),
+                Location = new Point(175, y),
+                Cursor = Cursors.Hand
+            };
+            btnRemove.FlatAppearance.BorderColor = ButtonsBorder;
+            btnRemove.Click += (s, e) =>
+            {
+                WallpaperPath = "";
+                _wallpaperFileLabel.Text = "(nenhum)";
+                OnColorChanged();
+            };
+            pnlMain.Controls.Add(btnRemove);
+            y += 34;
+
+            // Label Opacidade
+            var lblOpacity = new Label
+            {
+                Text = "Escurecimento:",
+                ForeColor = FormsForeground,
+                AutoSize = false,
+                Size = new Size(100, 20),
+                Location = new Point(25, y + 4),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            pnlMain.Controls.Add(lblOpacity);
+
+            var lblOpVal = new Label
+            {
+                Text = $"{WallpaperOpacity}%",
+                ForeColor = FormsForeground,
+                AutoSize = false,
+                Size = new Size(40, 20),
+                Location = new Point(340, y + 4),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            pnlMain.Controls.Add(lblOpVal);
+
+            var slider = new TrackBar
+            {
+                Minimum = 0,
+                Maximum = 100,
+                Value = WallpaperOpacity,
+                TickFrequency = 10,
+                SmallChange = 5,
+                LargeChange = 10,
+                Size = new Size(200, 30),
+                Location = new Point(130, y),
+                BackColor = FormsBackground
+            };
+            slider.ValueChanged += (s, e) =>
+            {
+                WallpaperOpacity = slider.Value;
+                lblOpVal.Text = $"{slider.Value}%";
+                OnColorChanged();
+            };
+            pnlMain.Controls.Add(slider);
+            y += 36;
+
+            // Slider: Transparência dos painéis
+            var lblPanelTr = new Label
+            {
+                Text = "Painéis:",
+                ForeColor = FormsForeground,
+                AutoSize = false,
+                Size = new Size(100, 20),
+                Location = new Point(25, y + 4),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            pnlMain.Controls.Add(lblPanelTr);
+
+            var lblPanelTrVal = new Label
+            {
+                Text = $"{PanelTransparency}%",
+                ForeColor = FormsForeground,
+                AutoSize = false,
+                Size = new Size(40, 20),
+                Location = new Point(340, y + 4),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            pnlMain.Controls.Add(lblPanelTrVal);
+
+            var sliderPanel = new TrackBar
+            {
+                Minimum = 0,
+                Maximum = 100,
+                Value = PanelTransparency,
+                TickFrequency = 10,
+                SmallChange = 5,
+                LargeChange = 10,
+                Size = new Size(200, 30),
+                Location = new Point(130, y),
+                BackColor = FormsBackground
+            };
+            sliderPanel.ValueChanged += (s, e) =>
+            {
+                PanelTransparency = sliderPanel.Value;
+                lblPanelTrVal.Text = $"{sliderPanel.Value}%";
+                OnColorChanged();
+            };
+            pnlMain.Controls.Add(sliderPanel);
+            y += 36;
+
+            _refreshActions.Add(() =>
+            {
+                _wallpaperFileLabel.Text = string.IsNullOrEmpty(WallpaperPath) ? "(nenhum)" : WallpaperPath;
+                _wallpaperFileLabel.ForeColor = FormsForeground;
+                lblOpacity.ForeColor = FormsForeground;
+                lblOpVal.ForeColor = FormsForeground;
+                lblOpVal.Text = $"{WallpaperOpacity}%";
+                slider.Value = WallpaperOpacity;
+                slider.BackColor = FormsBackground;
+                lblPanelTr.ForeColor = FormsForeground;
+                lblPanelTrVal.ForeColor = FormsForeground;
+                lblPanelTrVal.Text = $"{PanelTransparency}%";
+                sliderPanel.Value = PanelTransparency;
+                sliderPanel.BackColor = FormsBackground;
+                btnSelect.ForeColor = ButtonsForeground;
+                btnSelect.BackColor = ButtonsBackground;
+                btnSelect.FlatAppearance.BorderColor = ButtonsBorder;
+                btnRemove.ForeColor = ButtonsForeground;
+                btnRemove.BackColor = ButtonsBackground;
+                btnRemove.FlatAppearance.BorderColor = ButtonsBorder;
+            });
+
+            return y;
         }
 
         private int AddButtonStyleRow(int y)

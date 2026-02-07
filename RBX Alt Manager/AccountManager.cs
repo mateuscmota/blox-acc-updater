@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -229,6 +230,7 @@ namespace RBX_Alt_Manager
         public AccountManager()
         {
             Instance = this;
+            DoubleBuffered = true;
 
             ThemeEditor.LoadTheme();
 
@@ -1664,10 +1666,118 @@ namespace RBX_Alt_Manager
             PresenceTimer.Elapsed += (s, e) => AccountsView.InvokeIfRequired(async () => await UpdatePresence());
         }
 
+        private Bitmap _wallpaperImage;
+        private bool _videoWallpaperActive;
+        private static readonly string[] VideoExtensions = { ".mp4", ".webm", ".avi", ".mkv", ".wmv", ".mov" };
+
+        private bool IsVideoFile(string path)
+        {
+            string ext = Path.GetExtension(path).ToLower();
+            return Array.IndexOf(VideoExtensions, ext) >= 0;
+        }
+
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            // Vídeo wallpaper: DrawFrame faz lock interno e desenha direto
+            if (_videoWallpaperActive)
+            {
+                if (Classes.VideoWallpaperService.Instance.DrawFrame(e.Graphics, ClientRectangle))
+                    return;
+            }
+
+            // Imagem estática
+            if (_wallpaperImage != null)
+            {
+                try
+                {
+                    e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Low;
+                    e.Graphics.DrawImage(_wallpaperImage, ClientRectangle);
+                    return;
+                }
+                catch { }
+            }
+
+            base.OnPaintBackground(e);
+        }
+
+        public void ApplyWallpaper()
+        {
+            if (string.IsNullOrEmpty(ThemeEditor.WallpaperPath))
+            {
+                Classes.VideoWallpaperService.Instance.Stop();
+                _videoWallpaperActive = false;
+                BackgroundImage = null;
+                _wallpaperImage?.Dispose();
+                _wallpaperImage = null;
+                return;
+            }
+
+            var fullPath = Path.Combine(Environment.CurrentDirectory, "wallpapers", ThemeEditor.WallpaperPath);
+            if (!File.Exists(fullPath))
+            {
+                Classes.VideoWallpaperService.Instance.Stop();
+                _videoWallpaperActive = false;
+                BackgroundImage = null;
+                _wallpaperImage?.Dispose();
+                _wallpaperImage = null;
+                return;
+            }
+
+            if (IsVideoFile(fullPath))
+            {
+                // Vídeo: usar VideoWallpaperService + OnPaintBackground
+                BackgroundImage = null;
+                _wallpaperImage?.Dispose();
+                _wallpaperImage = null;
+                _videoWallpaperActive = true;
+                Classes.VideoWallpaperService.Instance.Start(
+                    this, fullPath, ThemeEditor.FormsBackground, ThemeEditor.WallpaperOpacity);
+            }
+            else
+            {
+                // Imagem estática: parar vídeo, renderizar bitmap, usar OnPaintBackground
+                Classes.VideoWallpaperService.Instance.Stop();
+                _videoWallpaperActive = false;
+                BackgroundImage = null;
+                _wallpaperImage?.Dispose();
+                _wallpaperImage = null;
+
+                try
+                {
+                    using (var original = Image.FromFile(fullPath))
+                    {
+                        var bmp = new Bitmap(ClientSize.Width, ClientSize.Height);
+                        using (var g = Graphics.FromImage(bmp))
+                        {
+                            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+
+                            float scale = Math.Max((float)bmp.Width / original.Width, (float)bmp.Height / original.Height);
+                            int w = (int)(original.Width * scale);
+                            int h = (int)(original.Height * scale);
+                            int x = (bmp.Width - w) / 2;
+                            int y = (bmp.Height - h) / 2;
+                            g.DrawImage(original, x, y, w, h);
+
+                            int alpha = (int)(ThemeEditor.WallpaperOpacity * 2.55f);
+                            using (var overlay = new SolidBrush(Color.FromArgb(alpha, ThemeEditor.FormsBackground)))
+                            {
+                                g.FillRectangle(overlay, 0, 0, bmp.Width, bmp.Height);
+                            }
+                        }
+                        _wallpaperImage = bmp;
+                    }
+                }
+                catch { }
+                Invalidate(false);
+            }
+        }
+
         public void ApplyTheme()
         {
             BackColor = ThemeEditor.FormsBackground;
             ForeColor = ThemeEditor.FormsForeground;
+
+            ApplyWallpaper();
 
             if (AccountsView.BackColor != ThemeEditor.AccountBackground || AccountsView.ForeColor != ThemeEditor.AccountForeground)
             {
@@ -1682,11 +1792,21 @@ namespace RBX_Alt_Manager
 
             Controls.ApplyTheme();
 
-            // Painéis que não são tratados pelo ApplyTheme extension (Panel não tem handler)
-            GameSelectorPanel.BackColor = ThemeEditor.FormsBackground;
-            EstoquePanel.BackColor = ThemeEditor.FormsBackground;
-            EstoqueTitleLabel.BackColor = ThemeEditor.HeaderBackground;
-            EstoqueRefreshButton.BackColor = ThemeEditor.HeaderBackground;
+            // Wallpaper: usar GetPanelColor para transparência configurável
+            bool hasWallpaper = !string.IsNullOrEmpty(ThemeEditor.WallpaperPath);
+            Color panelBg = ThemeEditor.GetPanelColor(ThemeEditor.FormsBackground);
+            Color headerBg = ThemeEditor.GetPanelColor(ThemeEditor.HeaderBackground);
+
+            // TODOS os painéis diretos do form
+            panel1.BackColor = panelBg;
+            panel2.BackColor = panelBg;
+            panel3.BackColor = panelBg;
+            GameSelectorPanel.BackColor = panelBg;
+            EstoquePanel.BackColor = panelBg;
+            EstoqueTitleLabel.BackColor = headerBg;
+            EstoqueRefreshButton.BackColor = headerBg;
+            PrivateServersPanel.BackColor = panelBg;
+            PasswordPanel.BackColor = panelBg;
 
             // Preservar cor terminal do DebugLog
             DebugLogTextBox.BackColor = ThemeEditor.TextBoxesBackground;
@@ -1704,12 +1824,12 @@ namespace RBX_Alt_Manager
             SettingsForm?.ApplyTheme();
 
             // Painel de Inventário
-            _inventoryPanel?.ApplyTheme();
+            _inventoryPanel?.ApplyTheme(hasWallpaper);
 
             // Painel de Amigos (panel4 + controles internos)
-            panel4.BackColor = ThemeEditor.FormsBackground;
+            panel4.BackColor = panelBg;
             if (FriendsListPanel != null)
-                FriendsListPanel.BackColor = ThemeEditor.FormsBackground;
+                FriendsListPanel.BackColor = panelBg;
             label2.ForeColor = ThemeEditor.FormsForeground;
             label3.ForeColor = ThemeEditor.FormsForeground;
             label4.ForeColor = ThemeEditor.FormsForeground;
@@ -3519,7 +3639,7 @@ namespace RBX_Alt_Manager
             FriendsListPanel.AutoScroll = true;
             FriendsListPanel.FlowDirection = FlowDirection.LeftToRight;
             FriendsListPanel.WrapContents = false;
-            FriendsListPanel.BackColor = ThemeEditor.FormsBackground;
+            FriendsListPanel.BackColor = ThemeEditor.GetPanelColor(ThemeEditor.FormsBackground);
             FriendsListPanel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right; // Ancoragem
             // Esconder scrollbar vertical após cada ciclo de layout (BeginInvoke roda APÓS o Windows calcular scrollbars)
             FriendsListPanel.Layout += (s, ev) =>
@@ -3530,7 +3650,7 @@ namespace RBX_Alt_Manager
 
             // Adicionar ao panel4
             panel4.Controls.Add(FriendsListPanel);
-            panel4.BackColor = ThemeEditor.FormsBackground;
+            panel4.BackColor = ThemeEditor.GetPanelColor(ThemeEditor.FormsBackground);
             panel4.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right; // Ancoragem do panel4
             FriendsListPanel.BringToFront();
             

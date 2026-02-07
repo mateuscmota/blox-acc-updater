@@ -221,6 +221,8 @@
     <Reference Include="Sodium, Version=0.10.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\libsodium-net.0.10.0\lib\Net40\Sodium.dll</HintPath>
     </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="WindowsBase" />
     <Reference Include="System" />
     <Reference Include="System.AppContext, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.AppContext.4.3.0\lib\net463\System.AppContext.dll</HintPath>
@@ -518,6 +520,7 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="Classes\InventorySyncService.cs" />
+    <Compile Include="Classes\VideoWallpaperService.cs" />
     <Compile Include="Classes\TwofaSyncService.cs" />
     <Compile Include="Classes\SupabaseManager.cs" />
     <Compile Include="AccountManager.cs">

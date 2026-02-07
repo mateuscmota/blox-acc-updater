@@ -454,24 +454,24 @@ namespace RBX_Alt_Manager.Controls
         /// <summary>
         /// Reaplica cores do ThemeEditor em todos os controles persistentes e reconstrói o painel de conteúdo.
         /// </summary>
-        public void ApplyTheme()
+        public void ApplyTheme(bool hasWallpaper = false)
         {
-            // Controles persistentes
-            this.BackColor = ThemeEditor.FormsBackground;
-            _headerPanel.BackColor = ThemeEditor.HeaderBackground;
+            // Controles persistentes — usar GetPanelColor para transparência configurável
+            this.BackColor = ThemeEditor.GetPanelColor(ThemeEditor.FormsBackground);
+            _headerPanel.BackColor = ThemeEditor.GetPanelColor(ThemeEditor.HeaderBackground);
             _backButton.ForeColor = ThemeEditor.ButtonsForeground;
             _backButton.BackColor = ThemeEditor.ButtonsBackground;
             _titleLabel.ForeColor = ThemeEditor.FormsForeground;
             _refreshButton.ForeColor = ThemeEditor.ButtonsForeground;
             _refreshButton.BackColor = ThemeEditor.ButtonsBackground;
 
-            _searchPanel.BackColor = ThemeEditor.HeaderBackground;
+            _searchPanel.BackColor = ThemeEditor.GetPanelColor(ThemeEditor.HeaderBackground);
             if (_searchPanel.Controls.Count > 0 && _searchPanel.Controls[0] is Panel searchBorder)
                 searchBorder.BackColor = ThemeEditor.TextBoxesBorder;
             _searchBox.ForeColor = ThemeEditor.TextBoxesForeground;
             _searchBox.BackColor = ThemeEditor.TextBoxesBackground;
 
-            _contentPanel.BackColor = ThemeEditor.FormsBackground;
+            _contentPanel.BackColor = ThemeEditor.GetPanelColor(ThemeEditor.FormsBackground);
 
             // Reconstruir painéis de conteúdo com as novas cores
             if (_selectedGame != null)
