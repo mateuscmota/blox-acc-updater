@@ -4098,6 +4098,9 @@ namespace RBX_Alt_Manager
                         var userId = users[0]["id"]?.Value<long>() ?? 0;
                         if (userId > 0)
                         {
+                            // Aceitar agreements pendentes via API antes de abrir navegador
+                            try { account.AcceptPendingAgreements(); } catch { }
+
                             // Usar navegador diretamente (API requer captcha)
                             var profileUrl = $"https://www.roblox.com/users/{userId}/profile";
                             AddLog($"🔄 [AddFriend] Abrindo perfil de {username} (ID: {userId})...");
@@ -4108,7 +4111,32 @@ namespace RBX_Alt_Manager
                                 {
                                     // Esperar página carregar
                                     await System.Threading.Tasks.Task.Delay(2000);
-                                    
+
+                                    // Fechar popup de Updated Agreements se aparecer no navegador
+                                    try
+                                    {
+                                        var agreedVia = await page.EvaluateExpressionAsync<string>(@"
+                                            (function() {
+                                                // Procurar modal de Updated Agreements e clicar em Agree
+                                                var buttons = document.querySelectorAll('button');
+                                                for (var i = 0; i < buttons.length; i++) {
+                                                    var text = (buttons[i].innerText || buttons[i].textContent || '').trim().toLowerCase();
+                                                    if (text === 'agree' || text === 'agree & continue' || text === 'i agree') {
+                                                        buttons[i].click();
+                                                        return 'clicked:' + text;
+                                                    }
+                                                }
+                                                return '';
+                                            })()
+                                        ");
+                                        if (!string.IsNullOrEmpty(agreedVia))
+                                        {
+                                            AddLog($"✅ [AddFriend] Agreements aceitos no navegador ({agreedVia})");
+                                            await System.Threading.Tasks.Task.Delay(2000);
+                                        }
+                                    }
+                                    catch { }
+
                                     // Esperar pelo botão usando seletor de ID
                                     try
                                     {

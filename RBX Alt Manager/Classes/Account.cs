@@ -1310,10 +1310,13 @@ namespace RBX_Alt_Manager
                 var getResponse = AccountManager.ApisClient.Execute(getRequest);
 
                 if (!getResponse.IsSuccessful || string.IsNullOrEmpty(getResponse.Content))
+                {
+                    AccountManager.AddLog($"⚠️ [{this.Username}] Erro ao buscar agreements: {getResponse.StatusCode} - {getResponse.Content}");
                     return false;
+                }
 
-                var data = JObject.Parse(getResponse.Content);
-                var agreements = data?["agreements"]?.ToObject<JArray>();
+                // A API retorna um array direto: [{id, agreementType, ...}, ...]
+                var agreements = JArray.Parse(getResponse.Content);
 
                 if (agreements == null || agreements.Count == 0)
                     return false;

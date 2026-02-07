@@ -1,5 +1,5 @@
 {
-    "version": "2.1.1",
-    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.1.1/2.1.1.zip",
-    "changelog": "Versão 2.1.1 - Auto-aceitar Updated Agreements do Roblox"
+    "version": "2.1.2",
+    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.1.2/2.1.2.zip",
+    "changelog": "Versão 2.1.2 - Fix: aceitar Updated Agreements antes de adicionar amigo"
 }
