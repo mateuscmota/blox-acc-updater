@@ -1,5 +1,5 @@
 {
-    "version": "2.1.0",
-    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.1.0/2.1.0.zip",
-    "changelog": "Versão 2.1.0 - Fix: polling timezone, sync estoque qty=0, estoque zerava ao trocar conta"
+    "version": "2.1.1",
+    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.1.1/2.1.1.zip",
+    "changelog": "Versão 2.1.1 - Auto-aceitar Updated Agreements do Roblox"
 }

@@ -1281,7 +1281,81 @@ namespace RBX_Alt_Manager
 
             RestResponse friendResponse = AccountManager.FriendsClient.Execute(friendRequest);
 
+            // Se falhou, tentar aceitar agreements e retry
+            if (!friendResponse.IsSuccessful || friendResponse.StatusCode != HttpStatusCode.OK)
+            {
+                if (AcceptPendingAgreements())
+                {
+                    if (!GetCSRFToken(out Token)) return false;
+                    friendRequest = MakeRequest($"/v1/users/{UserId}/request-friendship", Method.Post).AddHeader("X-CSRF-TOKEN", Token).AddHeader("Content-Type", "application/json");
+                    friendResponse = AccountManager.FriendsClient.Execute(friendRequest);
+                }
+            }
+
             return friendResponse.IsSuccessful && friendResponse.StatusCode == HttpStatusCode.OK;
+        }
+
+        /// <summary>
+        /// Verifica e aceita agreements pendentes do Roblox (Terms of Use, Privacy Policy)
+        /// </summary>
+        public bool AcceptPendingAgreements()
+        {
+            try
+            {
+                if (!GetCSRFToken(out string token)) return false;
+
+                // 1. Buscar agreements pendentes
+                var getRequest = MakeRequest("/user-agreements/v1/agreements-resolution/web", Method.Get)
+                    .AddHeader("X-CSRF-TOKEN", token);
+                var getResponse = AccountManager.ApisClient.Execute(getRequest);
+
+                if (!getResponse.IsSuccessful || string.IsNullOrEmpty(getResponse.Content))
+                    return false;
+
+                var data = JObject.Parse(getResponse.Content);
+                var agreements = data?["agreements"]?.ToObject<JArray>();
+
+                if (agreements == null || agreements.Count == 0)
+                    return false;
+
+                // 2. Montar lista de acceptances
+                var acceptances = new JArray();
+                foreach (var agreement in agreements)
+                {
+                    var id = agreement["id"]?.ToString();
+                    if (!string.IsNullOrEmpty(id))
+                        acceptances.Add(new JObject { ["agreementId"] = id });
+                }
+
+                if (acceptances.Count == 0)
+                    return false;
+
+                AccountManager.AddLog($"🔄 [{this.Username}] Aceitando {acceptances.Count} agreement(s) pendente(s)...");
+
+                // 3. POST para aceitar
+                if (!GetCSRFToken(out token)) return false;
+                var postRequest = MakeRequest("/user-agreements/v1/acceptances", Method.Post)
+                    .AddHeader("X-CSRF-TOKEN", token)
+                    .AddHeader("Content-Type", "application/json")
+                    .AddJsonBody(new { acceptances = acceptances });
+
+                var postResponse = AccountManager.ApisClient.Execute(postRequest);
+
+                if (postResponse.IsSuccessful)
+                {
+                    AccountManager.AddLog($"✅ [{this.Username}] Agreements aceitos com sucesso!");
+                    return true;
+                }
+                else
+                {
+                    AccountManager.AddLog($"⚠️ [{this.Username}] Erro ao aceitar agreements: {postResponse.StatusCode} - {postResponse.Content}");
+                }
+            }
+            catch (Exception ex)
+            {
+                AccountManager.AddLog($"⚠️ [{this.Username}] Erro AcceptAgreements: {ex.Message}");
+            }
+            return false;
         }
 
         public void SetDisplayName(string DisplayName)
