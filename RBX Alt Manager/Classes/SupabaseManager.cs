@@ -782,7 +782,7 @@ namespace RBX_Alt_Manager.Classes
         {
             try
             {
-                string sinceStr = since.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+                string sinceStr = since.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
                 var response = await _client.GetAsync(
                     $"{SUPABASE_URL}/rest/v1/game_items" +
                     $"?updated_at=gt.{Uri.EscapeDataString(sinceStr)}" +
@@ -1328,7 +1328,7 @@ namespace RBX_Alt_Manager.Classes
         {
             try
             {
-                string sinceStr = since.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+                string sinceStr = since.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
                 var response = await _client.GetAsync(
                     $"{SUPABASE_URL}/rest/v1/accounts" +
                     $"?updated_at=gt.{Uri.EscapeDataString(sinceStr)}" +

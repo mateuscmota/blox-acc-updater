@@ -3152,6 +3152,9 @@ namespace RBX_Alt_Manager
                             {
                                 if (child is TextBox tb && tb.Name == $"estoqueqty_{entry.Id}")
                                 {
+                                    // Atualizar Tag para manter consistência (evita Leave re-enviar valor stale)
+                                    if (tb.Tag is SupabaseInventoryEntry tagInv)
+                                        tagInv.Quantity = entry.Quantity;
                                     tb.Text = FormatNumberWithThousands(entry.Quantity);
                                     found = true;
                                     break;

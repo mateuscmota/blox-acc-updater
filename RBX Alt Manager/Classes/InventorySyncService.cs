@@ -128,7 +128,7 @@ namespace RBX_Alt_Manager.Classes
         {
             try
             {
-                string lastCheckStr = _lastInventoryCheckUtc.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+                string lastCheckStr = _lastInventoryCheckUtc.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
                 DateTime pollTime = DateTime.UtcNow;
 
                 var response = await _client.GetAsync(
@@ -161,7 +161,7 @@ namespace RBX_Alt_Manager.Classes
                             InventoryEntriesChanged?.Invoke(this, external);
                         }
 
-                        _lastInventoryCheckUtc = changed.Max(c => c.UpdatedAt);
+                        _lastInventoryCheckUtc = changed.Max(c => c.UpdatedAt).ToUniversalTime();
                     }
                     else
                     {
@@ -200,7 +200,7 @@ namespace RBX_Alt_Manager.Classes
                         GameItemsChanged?.Invoke(this, external);
                     }
 
-                    _lastGameItemsCheckUtc = changed.Max(c => c.UpdatedAt);
+                    _lastGameItemsCheckUtc = changed.Max(c => c.UpdatedAt).ToUniversalTime();
                 }
             }
             catch (Exception ex)
