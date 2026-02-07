@@ -178,11 +178,13 @@ timeout /t 1 /nobreak >nul
 echo Preservando dados do usuário...
 if exist ""{currentDir}\AccountData.json"" copy /y ""{currentDir}\AccountData.json"" ""{extractPath}\AccountData.json.bak"" >nul 2>&1
 if exist ""{currentDir}\RAMSettings.ini"" copy /y ""{currentDir}\RAMSettings.ini"" ""{extractPath}\RAMSettings.ini.bak"" >nul 2>&1
+if exist ""{currentDir}\RAMTheme.ini"" copy /y ""{currentDir}\RAMTheme.ini"" ""{extractPath}\RAMTheme.ini.bak"" >nul 2>&1
 if exist ""{currentDir}\themes"" xcopy /s /e /y /i ""{currentDir}\themes"" ""{extractPath}\themes.bak\"" >nul 2>&1
 
 echo Removendo dados de desenvolvimento do pacote...
 if exist ""{extractPath}\AccountData.json"" del ""{extractPath}\AccountData.json"" >nul 2>&1
 if exist ""{extractPath}\RAMSettings.ini"" del ""{extractPath}\RAMSettings.ini"" >nul 2>&1
+if exist ""{extractPath}\RAMTheme.ini"" del ""{extractPath}\RAMTheme.ini"" >nul 2>&1
 
 echo Instalando atualização...
 xcopy /s /e /y /i ""{extractPath}\*"" ""{currentDir}\"" >nul 2>&1
@@ -193,6 +195,9 @@ if exist ""{extractPath}\AccountData.json.bak"" (
 )
 if exist ""{extractPath}\RAMSettings.ini.bak"" (
     copy /y ""{extractPath}\RAMSettings.ini.bak"" ""{currentDir}\RAMSettings.ini"" >nul 2>&1
+)
+if exist ""{extractPath}\RAMTheme.ini.bak"" (
+    copy /y ""{extractPath}\RAMTheme.ini.bak"" ""{currentDir}\RAMTheme.ini"" >nul 2>&1
 )
 if exist ""{extractPath}\themes.bak"" (
     xcopy /s /e /y /i ""{extractPath}\themes.bak\*"" ""{currentDir}\themes\"" >nul 2>&1
