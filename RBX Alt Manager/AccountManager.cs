@@ -2077,6 +2077,9 @@ namespace RBX_Alt_Manager
                     "Ordem correta: Account Manager → Conta principal → Outras contas",
                     "Multi Roblox - Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
+            // Limpar versões antigas do Roblox (evita conflito com Multi Roblox)
+            CleanOldRobloxVersions();
+
             // Limpar pasta de downloads residuais do Roblox (evita acúmulo de GB)
             CleanRobloxDownloads();
 
@@ -2115,6 +2118,73 @@ namespace RBX_Alt_Manager
                 });
             }
             // CefSharp removido — apenas Chromium (Puppeteer) é suportado
+        }
+
+        /// <summary>
+        /// Remove versões antigas do Roblox da pasta Versions.
+        /// Quando o Roblox atualiza, cria uma nova pasta version-* sem remover a anterior.
+        /// Duas versões ativas causam conflito com Multi Roblox.
+        /// Mantém apenas a versão mais recente (por data de modificação).
+        /// </summary>
+        private void CleanOldRobloxVersions()
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    string versionsPath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "Roblox", "Versions");
+
+                    if (!Directory.Exists(versionsPath)) return;
+
+                    var versionDirs = Directory.GetDirectories(versionsPath)
+                        .Where(d => Path.GetFileName(d).StartsWith("version-"))
+                        .Select(d => new DirectoryInfo(d))
+                        .OrderByDescending(d => d.LastWriteTime)
+                        .ToList();
+
+                    if (versionDirs.Count <= 1) return;
+
+                    // A versão mais recente é a primeira (ordenada por data desc)
+                    var latest = versionDirs[0];
+                    var oldVersions = versionDirs.Skip(1).ToList();
+
+                    AddLog($"⚠️ [Multi Roblox] Detectadas {versionDirs.Count} versões do Roblox. Mantendo apenas: {latest.Name}");
+
+                    // Verificar se há processos do Roblox rodando
+                    var robloxProcs = Utilities.GetRobloxProcesses();
+                    if (robloxProcs.Length > 0)
+                    {
+                        AddLog($"⚠️ [Multi Roblox] {robloxProcs.Length} processos do Roblox ativos. Limpeza de versões antigas adiada.");
+                        return;
+                    }
+
+                    int removed = 0;
+                    foreach (var oldDir in oldVersions)
+                    {
+                        try
+                        {
+                            oldDir.Delete(true);
+                            removed++;
+                            AddLog($"🗑️ [Multi Roblox] Versão antiga removida: {oldDir.Name}");
+                        }
+                        catch (Exception ex)
+                        {
+                            if (DebugModeAtivo)
+                                AddLog($"⚠️ [Multi Roblox] Não foi possível remover {oldDir.Name}: {ex.Message}");
+                        }
+                    }
+
+                    if (removed > 0)
+                        AddLog($"✅ [Multi Roblox] {removed} versão(ões) antiga(s) removida(s). Apenas {latest.Name} ativa.");
+                }
+                catch (Exception ex)
+                {
+                    if (DebugModeAtivo)
+                        AddLog($"⚠️ [Multi Roblox] Erro ao limpar versões: {ex.Message}");
+                }
+            });
         }
 
         /// <summary>
