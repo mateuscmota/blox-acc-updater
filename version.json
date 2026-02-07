@@ -1,5 +1,5 @@
 {
-    "version": "2.0.8",
-    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.0.8/2.0.8.zip",
-    "changelog": "Versão 2.0.8 - Sincronização em tempo real completa do inventário e estoque"
+    "version": "2.0.9",
+    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.0.9/2.0.9.zip",
+    "changelog": "Versão 2.0.9 - Fix: estoque zerava ao trocar de conta (bug de formatação pt-BR)"
 }

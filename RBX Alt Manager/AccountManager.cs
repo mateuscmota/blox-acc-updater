@@ -5267,7 +5267,7 @@ namespace RBX_Alt_Manager
             if (string.IsNullOrWhiteSpace(text)) return 0;
 
             string original = text;
-            text = text.Trim().ToLower().Replace(",", "");
+            text = text.Trim().ToLower().Replace(",", "").Replace(".", "");
 
             long multiplier = 1;
             string suffix = "";
