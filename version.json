@@ -1,5 +1,5 @@
 {
-    "version": "2.1.4",
-    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.1.4/2.1.4.zip",
-    "changelog": "Versão 2.1.4 - Fix: updater agora preserva PrivateServers.json e wallpapers"
+    "version": "2.1.5",
+    "download_url": "https://github.com/mateuscmota/blox-acc-updater/releases/download/2.1.5/2.1.5.zip",
+    "changelog": "Versão 2.1.5 - Fix: updater preserva RecentGames.json (jogos recentes)"
 }
